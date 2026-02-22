@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "979490303566",
+    "project_id": "scantopdf-818b2",
+    "storage_bucket": "scantopdf-818b2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:979490303566:android:631693aaf6a46f64c25d1f",
+        "android_client_info": {
+          "package_name": "com.hrishipvt.scantopdf"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "979490303566-06ip1g24a35gn6o5pbg9lgmujr316gca.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.hrishipvt.scantopdf",
+            "certificate_hash": "a2618298458e619073585f7dae7a1619f8dd4c4a"
+          }
+        },
+        {
+          "client_id": "979490303566-lpcqjrhu0q4nnjomgbfhr7tn5ge623li.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBy7COWBxM_PumfNFFdnI_0PySZNitt4-c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "979490303566-lpcqjrhu0q4nnjomgbfhr7tn5ge623li.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

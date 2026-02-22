@@ -1,0 +1,28 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="start"
+    android:orientation="horizontal"
+    android:padding="8dp">
+
+    <com.google.android.material.imageview.ShapeableImageView
+        android:id="@+id/ivAiAvatar"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="#F0F0F0"
+        android:padding="8dp"
+        android:src="@drawable/ic_ai_placeholder"
+        app:shapeAppearanceOverlay="@style/CircleImage" />
+
+    <TextView
+        android:id="@+id/tvMessage"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:background="@drawable/bg_bubble_ai"
+        android:padding="12dp"
+        android:text="AI response goes here..."
+        android:textColor="@color/text_primary" />
+
+</LinearLayout>

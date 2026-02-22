@@ -1,0 +1,25 @@
+<resources>
+    <string name="app_name">ScanToPdf</string>
+    <string name="save_pdf">Save PDF</string>
+    <string name="scan_document">Scan Document</string>
+    <string name="capture">Capture</string>
+    <string name="done">Done</string>
+    <string name="pdf_file">PDF File</string>
+
+    <string name="crop">Crop</string>
+    <string name="rotate">Rotate</string>
+    <string name="black_white">B/W</string>
+
+    <string name="create_account">Create Account</string>
+    <string name="signup_subtitle">Sign up to get started</string>
+    <string name="full_name">Full Name</string>
+    <string name="email">Email</string>
+    <string name="password">Password</string>
+    <string name="confirm_password">Confirm Password</string>
+    <string name="sign_up">Sign Up</string>
+    <string name="already_have_account">Already have an account? Login</string>
+
+    <string name="default_web_client_id">979490303566-lpcqjrhu0q4nnjomgbfhr7tn5ge623li.apps.googleusercontent.com</string>
+
+
+</resources>

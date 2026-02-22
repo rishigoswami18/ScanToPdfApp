@@ -1,0 +1,12 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.ScanToPdf" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/purple_500</item>
+        <item name="colorSecondary">@color/teal_200</item>
+
+
+
+    </style>
+    <style name="CircleImage">
+        <item name="cornerSize">50%</item>
+    </style>
+</resources>
