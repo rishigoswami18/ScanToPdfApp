@@ -16,4 +16,7 @@ interface ChatDao {
     // DELETE messages older than 7 days (7 * 24 * 60 * 60 * 1000 ms)
     @Query("DELETE FROM chat_history WHERE timestamp < :expirationTime")
     suspend fun deleteOldMessages(expirationTime: Long)
+
+    @Query("DELETE FROM chat_history")
+    suspend fun clearAll()
 }

@@ -10,65 +10,124 @@ import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
 import android.view.View
-import android.widget.ProgressBar
 import android.widget.Toast
-import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
-import androidx.viewpager2.widget.ViewPager2
-import com.google.android.material.button.MaterialButton
 import com.hrishipvt.scantopdf.R
 import com.hrishipvt.scantopdf.adapter.EditToolsAdapter
 import com.hrishipvt.scantopdf.adapter.PreviewPagerAdapter
 import com.hrishipvt.scantopdf.ai.AiOcrUtils
-import com.hrishipvt.scantopdf.view.EditTool
+import com.hrishipvt.scantopdf.databinding.ActivityPreviewBinding
 import com.hrishipvt.scantopdf.utils.ImageUtils
 import com.hrishipvt.scantopdf.utils.ScanSession
-import com.hrishipvt.scantopdf.view.CropOverlayView
+import com.hrishipvt.scantopdf.view.EditTool
+import com.hrishipvt.scantopdf.voice.VoiceEnabledActivity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.OutputStream
+import org.apache.poi.xwpf.usermodel.XWPFDocument
+import java.io.File
+import java.util.Locale
 
-class PreviewActivity : AppCompatActivity() {
+class PreviewActivity : VoiceEnabledActivity() {
 
-    private lateinit var viewPager: ViewPager2
-    private lateinit var cropOverlay: CropOverlayView
+    private lateinit var binding: ActivityPreviewBinding
     private lateinit var adapter: PreviewPagerAdapter
-    private lateinit var progressBar: ProgressBar
-    private lateinit var rvEditTools: RecyclerView
-    private var extractedText = StringBuilder()
+    private val extractedText = StringBuilder()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_preview)
+        binding = ActivityPreviewBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
+        setupToolbar()
+        setupVoiceAssistant()
         initViews()
         setupEditToolbar()
         handleIncomingData()
     }
 
+    override fun voiceCommandHelp(): String {
+        return "Try saying crop, rotate, filter, delete page, next page, previous page, AI summary, save PDF, or back."
+    }
+
+    override fun handleScreenVoiceCommand(rawCommand: String, normalizedCommand: String): Boolean {
+        return when {
+            normalizedCommand.contains("crop") -> {
+                speak("Cropping page.")
+                toggleCrop()
+                true
+            }
+
+            normalizedCommand.contains("rotate") -> {
+                speak("Rotating page.")
+                handleRotate()
+                true
+            }
+
+            normalizedCommand.contains("filter") || normalizedCommand.contains("black") || normalizedCommand.contains("gray") -> {
+                speak("Applying grayscale filter.")
+                handleGrayScale()
+                true
+            }
+
+            normalizedCommand.contains("delete") || normalizedCommand.contains("remove") -> {
+                speak("Deleting current page.")
+                handleDelete()
+                true
+            }
+
+            normalizedCommand.contains("summary") || normalizedCommand.contains("ai") -> {
+                speak("Opening AI summary.")
+                binding.btnAiSummary.performClick()
+                true
+            }
+
+            normalizedCommand.contains("save") || normalizedCommand.contains("pdf") -> {
+                speak("Saving document as PDF.")
+                generateAndSavePdf()
+                true
+            }
+
+            normalizedCommand.contains("next page") || normalizedCommand == "next" -> {
+                movePageBy(1)
+                true
+            }
+
+            normalizedCommand.contains("previous page") || normalizedCommand.contains("back page") -> {
+                movePageBy(-1)
+                true
+            }
+
+            normalizedCommand.contains("page count") || normalizedCommand.contains("status") -> {
+                speak("There are ${ScanSession.bitmaps.size} pages in the document.")
+                true
+            }
+
+            else -> false
+        }
+    }
+
+    private fun setupToolbar() {
+        setSupportActionBar(binding.toolbar)
+        supportActionBar?.setDisplayShowTitleEnabled(false)
+        binding.toolbar.setNavigationOnClickListener { onBackPressedDispatcher.onBackPressed() }
+    }
+
     private fun initViews() {
-        viewPager = findViewById(R.id.viewPager)
-        cropOverlay = findViewById(R.id.cropOverlay)
-        progressBar = findViewById(R.id.progressBar)
-        rvEditTools = findViewById(R.id.rvEditTools)
-
         adapter = PreviewPagerAdapter(ScanSession.bitmaps)
-        viewPager.adapter = adapter
+        binding.viewPager.adapter = adapter
 
-        findViewById<MaterialButton>(R.id.btnSave).setOnClickListener { generateAndSavePdf() }
+        binding.btnSave.setOnClickListener { generateAndSavePdf() }
 
-        // Final AI Summary Logic: Extract text from ALL pages before navigating
-        findViewById<MaterialButton>(R.id.btnAiSummary).setOnClickListener {
+        binding.btnAiSummary.setOnClickListener {
             if (ScanSession.bitmaps.isEmpty()) {
                 Toast.makeText(this, "No pages to summarize", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
-            progressBar.visibility = View.VISIBLE
-            extractedText.setLength(0) // Clear previous OCR session
+            binding.progressBar.visibility = View.VISIBLE
+            extractedText.setLength(0)
 
             lifecycleScope.launch(Dispatchers.Default) {
                 var processedCount = 0
@@ -76,11 +135,7 @@ class PreviewActivity : AppCompatActivity() {
                     AiOcrUtils.extractText(bitmap, { text ->
                         extractedText.append(text).append("\n")
                         processedCount++
-
-                        // Check if all pages are done
-                        if (processedCount == ScanSession.bitmaps.size) {
-                            navigateToSummary()
-                        }
+                        if (processedCount == ScanSession.bitmaps.size) navigateToSummary()
                     }, {
                         processedCount++
                         if (processedCount == ScanSession.bitmaps.size) navigateToSummary()
@@ -90,9 +145,19 @@ class PreviewActivity : AppCompatActivity() {
         }
     }
 
+    private fun movePageBy(step: Int) {
+        val nextIndex = (binding.viewPager.currentItem + step).coerceIn(0, (ScanSession.bitmaps.size - 1).coerceAtLeast(0))
+        if (nextIndex == binding.viewPager.currentItem) {
+            speak("No more pages in that direction.")
+        } else {
+            binding.viewPager.currentItem = nextIndex
+            speak("Showing page ${nextIndex + 1}.")
+        }
+    }
+
     private fun navigateToSummary() {
         lifecycleScope.launch(Dispatchers.Main) {
-            progressBar.visibility = View.GONE
+            binding.progressBar.visibility = View.GONE
             val intent = Intent(this@PreviewActivity, AiSummaryActivity::class.java)
             intent.putExtra("EXTRA_OCR_TEXT", extractedText.toString())
             startActivity(intent)
@@ -104,25 +169,38 @@ class PreviewActivity : AppCompatActivity() {
             EditTool(1, "Crop", R.drawable.ic_crop),
             EditTool(2, "Rotate", R.drawable.ic_rotate),
             EditTool(3, "B/W", R.drawable.ic_filter),
-            EditTool(4, "Delete", R.drawable.ic_delete),
-            EditTool(5, "OCR", R.drawable.ic_word_to_pdf)
+            EditTool(4, "Delete", R.drawable.ic_delete)
         )
 
-        rvEditTools.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
-        rvEditTools.adapter = EditToolsAdapter(tools) { tool ->
-            when (tool.id) {
-                1 -> handleCrop()
-                2 -> handleRotate()
-                3 -> handleGrayScale()
-                4 -> handleDelete()
-                5 -> Toast.makeText(this, "Auto-OCR enabled for Summary", Toast.LENGTH_SHORT).show()
+        binding.rvEditTools.apply {
+            layoutManager = LinearLayoutManager(this@PreviewActivity, LinearLayoutManager.HORIZONTAL, false)
+            adapter = EditToolsAdapter(tools) { tool ->
+                when (tool.id) {
+                    1 -> toggleCrop()
+                    2 -> handleRotate()
+                    3 -> handleGrayScale()
+                    4 -> handleDelete()
+                }
             }
         }
     }
 
-    private fun handleIncomingData() {
+    private fun toggleCrop() {
+        if (binding.cropOverlay.visibility == View.VISIBLE) {
+            handleCrop()
+            binding.cropOverlay.visibility = View.GONE
+        } else {
+            binding.cropOverlay.visibility = View.VISIBLE
+        }
+    }
 
-        progressBar.visibility = View.VISIBLE
+    private fun handleIncomingData() {
+        val selectedDocUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getParcelableExtra("selected_doc_uri", Uri::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            intent.getParcelableExtra("selected_doc_uri") as? Uri
+        }
 
         val uris = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             intent.getParcelableArrayListExtra("selected_uris", Uri::class.java)
@@ -131,18 +209,24 @@ class PreviewActivity : AppCompatActivity() {
             intent.getParcelableArrayListExtra("selected_uris")
         }
 
-        if (uris.isNullOrEmpty()) return
+        val importUris = buildList {
+            if (!uris.isNullOrEmpty()) addAll(uris)
+            if (selectedDocUri != null) add(selectedDocUri)
+        }
 
-        progressBar.visibility = View.VISIBLE
-        // ScanSession.bitmaps.clear() // Uncomment if you want to replace current session
+        if (importUris.isEmpty()) return
 
+        binding.progressBar.visibility = View.VISIBLE
         lifecycleScope.launch(Dispatchers.IO) {
-            uris.forEach { uri ->
+            ScanSession.clear()
+            importUris.forEach { uri ->
                 val mimeType = contentResolver.getType(uri) ?: ""
                 try {
                     when {
                         mimeType == "application/pdf" -> renderPdfToBitmaps(uri)
-                        mimeType.contains("word") || mimeType.contains("officedocument") -> renderWordToBitmaps(uri)
+                        mimeType.contains("word") || mimeType.contains("officedocument") || mimeType.contains("docx") -> {
+                            renderWordToBitmaps(uri)
+                        }
                         else -> {
                             contentResolver.openInputStream(uri)?.use { stream ->
                                 val bitmap = BitmapFactory.decodeStream(stream)
@@ -150,13 +234,15 @@ class PreviewActivity : AppCompatActivity() {
                             }
                         }
                     }
-                } catch (e: Exception) { e.printStackTrace() }
+                } catch (error: Exception) {
+                    error.printStackTrace()
+                }
             }
 
             withContext(Dispatchers.Main) {
                 adapter.notifyDataSetChanged()
-                progressBar.visibility = View.GONE
-                if (ScanSession.bitmaps.isNotEmpty()) viewPager.currentItem = 0
+                binding.progressBar.visibility = View.GONE
+                if (ScanSession.bitmaps.isNotEmpty()) binding.viewPager.currentItem = 0
             }
         }
     }
@@ -177,65 +263,105 @@ class PreviewActivity : AppCompatActivity() {
 
     private fun renderWordToBitmaps(uri: Uri) {
         contentResolver.openInputStream(uri)?.use { inputStream ->
-            val doc = org.apache.poi.xwpf.usermodel.XWPFDocument(inputStream)
-            val text = org.apache.poi.xwpf.extractor.XWPFWordExtractor(doc).text
+            XWPFDocument(inputStream).use { doc ->
+                val textBuilder = StringBuilder()
 
-            val bitmap = Bitmap.createBitmap(1240, 1754, Bitmap.Config.ARGB_8888)
-            val canvas = android.graphics.Canvas(bitmap)
-            canvas.drawColor(android.graphics.Color.WHITE)
-            val paint = android.graphics.Paint().apply { color = android.graphics.Color.BLACK; textSize = 32f }
+                doc.paragraphs.forEach { paragraph ->
+                    textBuilder.append(paragraph.text).append("\n")
+                }
 
-            var y = 80f
-            text.split("\n").take(40).forEach { line ->
-                canvas.drawText(if (line.length > 80) line.take(77) + "..." else line, 50f, y, paint)
-                y += 45f
+                val fullText = textBuilder.toString()
+                if (fullText.isEmpty()) return
+
+                val pageWidth = 595
+                val pageHeight = 842
+                val bitmap = Bitmap.createBitmap(pageWidth, pageHeight, Bitmap.Config.ARGB_8888)
+                val canvas = android.graphics.Canvas(bitmap)
+                canvas.drawColor(android.graphics.Color.WHITE)
+
+                val paint = android.graphics.Paint().apply {
+                    color = android.graphics.Color.BLACK
+                    textSize = 12f
+                    isAntiAlias = true
+                }
+
+                val textPaint = android.text.TextPaint(paint)
+                val staticLayout = android.text.StaticLayout.Builder
+                    .obtain(fullText, 0, fullText.length, textPaint, pageWidth - 80)
+                    .setAlignment(android.text.Layout.Alignment.ALIGN_NORMAL)
+                    .setLineSpacing(0f, 1.2f)
+                    .build()
+
+                canvas.save()
+                canvas.translate(40f, 40f)
+                staticLayout.draw(canvas)
+                canvas.restore()
+
+                ScanSession.bitmaps.add(bitmap)
             }
-            ScanSession.bitmaps.add(bitmap)
-            doc.close()
         }
     }
 
     private fun handleCrop() {
-        val index = viewPager.currentItem
+        val index = binding.viewPager.currentItem
         if (index !in ScanSession.bitmaps.indices) return
+
         val original = ScanSession.bitmaps[index]
-        val rect = cropOverlay.getCropRect()
+        val rect = binding.cropOverlay.getCropRect()
+        val safeLeft = rect.left.toInt().coerceIn(0, original.width - 1)
+        val safeTop = rect.top.toInt().coerceIn(0, original.height - 1)
+        val safeWidth = rect.width().toInt().coerceIn(1, original.width - safeLeft)
+        val safeHeight = rect.height().toInt().coerceIn(1, original.height - safeTop)
         try {
-            val cropped = Bitmap.createBitmap(original,
-                rect.left.toInt().coerceAtLeast(0), rect.top.toInt().coerceAtLeast(0),
-                rect.width().toInt().coerceAtMost(original.width), rect.height().toInt().coerceAtMost(original.height))
+            val cropped = Bitmap.createBitmap(
+                original,
+                safeLeft,
+                safeTop,
+                safeWidth,
+                safeHeight
+            )
             ScanSession.bitmaps[index] = cropped
             adapter.notifyItemChanged(index)
-            cropOverlay.reset()
-        } catch (e: Exception) { Toast.makeText(this, "Crop failed", Toast.LENGTH_SHORT).show() }
+            binding.cropOverlay.reset()
+        } catch (error: Exception) {
+            Toast.makeText(this, "Crop failed", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun handleRotate() {
-        val i = viewPager.currentItem
-        if (i in ScanSession.bitmaps.indices) {
-            ScanSession.bitmaps[i] = ImageUtils.rotate(ScanSession.bitmaps[i])
-            adapter.notifyItemChanged(i)
+        val index = binding.viewPager.currentItem
+        if (index in ScanSession.bitmaps.indices) {
+            ScanSession.bitmaps[index] = ImageUtils.rotate(ScanSession.bitmaps[index])
+            adapter.notifyItemChanged(index)
         }
     }
 
     private fun handleGrayScale() {
-        val i = viewPager.currentItem
-        if (i in ScanSession.bitmaps.indices) {
-            ScanSession.bitmaps[i] = ImageUtils.toGray(ScanSession.bitmaps[i])
-            adapter.notifyItemChanged(i)
+        val index = binding.viewPager.currentItem
+        if (index in ScanSession.bitmaps.indices) {
+            ScanSession.bitmaps[index] = ImageUtils.toGray(ScanSession.bitmaps[index])
+            adapter.notifyItemChanged(index)
         }
     }
 
     private fun handleDelete() {
-        val i = viewPager.currentItem
+        val index = binding.viewPager.currentItem
         if (ScanSession.bitmaps.size > 1) {
-            ScanSession.bitmaps.removeAt(i)
-            adapter.notifyItemRemoved(i)
+            ScanSession.bitmaps.removeAt(index)
+            adapter.notifyItemRemoved(index)
+            speak("Page deleted. ${ScanSession.bitmaps.size} pages remaining.")
+        } else {
+            Toast.makeText(this, "Cannot delete last page", Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun generateAndSavePdf() {
-        progressBar.visibility = View.VISIBLE
+        if (ScanSession.bitmaps.isEmpty()) {
+            Toast.makeText(this, "No pages available to save", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        binding.progressBar.visibility = View.VISIBLE
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val pdfDocument = android.graphics.pdf.PdfDocument()
@@ -245,28 +371,51 @@ class PreviewActivity : AppCompatActivity() {
                     page.canvas.drawBitmap(bitmap, 0f, 0f, null)
                     pdfDocument.finishPage(page)
                 }
-                savePdfToDownloads(pdfDocument)
+                val saved = savePdfToDownloads(pdfDocument)
                 pdfDocument.close()
                 withContext(Dispatchers.Main) {
-                    progressBar.visibility = View.GONE
-                    Toast.makeText(this@PreviewActivity, "PDF Saved to Downloads!", Toast.LENGTH_SHORT).show()
-                    finish()
+                    binding.progressBar.visibility = View.GONE
+                    if (saved) {
+                        Toast.makeText(this@PreviewActivity, "PDF Saved to Downloads!", Toast.LENGTH_SHORT).show()
+                        ScanSession.clear()
+                        finish()
+                    } else {
+                        Toast.makeText(this@PreviewActivity, "Failed to save PDF", Toast.LENGTH_SHORT).show()
+                    }
                 }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) { progressBar.visibility = View.GONE }
+            } catch (error: Exception) {
+                withContext(Dispatchers.Main) {
+                    binding.progressBar.visibility = View.GONE
+                    Toast.makeText(this@PreviewActivity, "Failed to save PDF", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
 
-    private fun savePdfToDownloads(pdfDocument: android.graphics.pdf.PdfDocument) {
+    private fun savePdfToDownloads(pdfDocument: android.graphics.pdf.PdfDocument): Boolean {
         val fileName = "Scan_${System.currentTimeMillis()}.pdf"
-        val values = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-            put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
-            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
-        }
-        contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)?.let { uri ->
-            contentResolver.openOutputStream(uri)?.use { pdfDocument.writeTo(it) }
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val values = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
+                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+            }
+            val savedUri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values) ?: return false
+            contentResolver.openOutputStream(savedUri)?.use {
+                pdfDocument.writeTo(it)
+                true
+            } ?: false
+        } else {
+            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            if (!downloadsDir.exists() && !downloadsDir.mkdirs()) {
+                return false
+            }
+
+            val outputFile = File(downloadsDir, fileName)
+            outputFile.outputStream().use {
+                pdfDocument.writeTo(it)
+            }
+            true
         }
     }
 }

@@ -19,5 +19,6 @@ object AiOcrUtils {
         recognizer.process(image)
             .addOnSuccessListener { onSuccess(it.text) }
             .addOnFailureListener { onError(it.message ?: "OCR failed") }
+            .addOnCompleteListener { recognizer.close() }
     }
 }

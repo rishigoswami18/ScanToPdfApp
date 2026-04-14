@@ -1,0 +1,38 @@
+<resources>
+    <color name="primary_warm">#5B8CFF</color>
+    <color name="primary_dark_warm">#3E6FDE</color>
+    <color name="secondary_warm">#22C4B8</color>
+    <color name="accent_warm">#F8B84E</color>
+
+    <color name="background_warm">#0B1220</color>
+    <color name="surface_warm">#121B2D</color>
+    <color name="text_primary_warm">#F8FAFC</color>
+    <color name="text_secondary_warm">#CBD5E1</color>
+
+    <color name="purple_500">#5B8CFF</color>
+    <color name="teal_200">#22C4B8</color>
+
+    <color name="background">#0B1220</color>
+    <color name="surface">#121B2D</color>
+    <color name="surface_variant">#19243A</color>
+    <color name="surface_emphasis">#22314E</color>
+    <color name="text_primary">#F8FAFC</color>
+    <color name="text_secondary">#CBD5E1</color>
+    <color name="primary_red">#F87171</color>
+    <color name="text_grey">#64748B</color>
+    <color name="stroke_subtle">#243248</color>
+    <color name="success_green">#34D399</color>
+    <color name="toolbar_icon">#F8FAFC</color>
+    <color name="bottom_bar">#101827</color>
+    <color name="chip_bg">#26FFFFFF</color>
+    <color name="hero_start">#0F172A</color>
+    <color name="hero_center">#12305F</color>
+    <color name="hero_end">#1C4FBF</color>
+    <color name="hero_text_secondary">#D8E2FF</color>
+
+    <color name="splash_bg_top">#050D1C</color>
+    <color name="splash_bg_bottom">#12305F</color>
+    <color name="splash_text_primary">#FFFFFF</color>
+    <color name="splash_text_secondary">#D8E2FF</color>
+    <color name="splash_accent">#93C5FD</color>
+</resources>

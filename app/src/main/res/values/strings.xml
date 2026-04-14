@@ -12,14 +12,100 @@
 
     <string name="create_account">Create Account</string>
     <string name="signup_subtitle">Sign up to get started</string>
-    <string name="full_name">Full Name</string>
+    <string name="full_name">Full name</string>
     <string name="email">Email</string>
+    <string name="email_address">Email address</string>
     <string name="password">Password</string>
-    <string name="confirm_password">Confirm Password</string>
-    <string name="sign_up">Sign Up</string>
-    <string name="already_have_account">Already have an account? Login</string>
+    <string name="confirm_password">Confirm password</string>
+    <string name="sign_up">Create account</string>
+    <string name="sign_in">Sign in</string>
+    <string name="already_have_account">Already have an account? Sign in</string>
+    <string name="continue_with_google">Continue with Google</string>
 
     <string name="default_web_client_id">979490303566-lpcqjrhu0q4nnjomgbfhr7tn5ge623li.apps.googleusercontent.com</string>
 
+    <string name="quote_format">\"%1$s\" - %2$s</string>
+    <string name="voice_command">Voice Command</string>
+    <string name="read_aloud">Read Aloud</string>
 
+    <string name="app_title_display">ScanToPdf Workspace</string>
+    <string name="home_eyebrow">Professional document workspace</string>
+    <string name="home_greeting_personal">%1$s, %2$s</string>
+    <string name="home_greeting_generic">%1$s</string>
+    <string name="home_workspace_summary_signed_in">Everything is ready for secure scanning, organization, and AI-assisted review.</string>
+    <string name="home_workspace_summary_guest">Sign in to sync documents, unlock cloud backup, and keep your workspace connected.</string>
+    <string name="home_quick_scan">Start scan</string>
+    <string name="home_quick_files">Open files</string>
+    <string name="ai_banner_badge">AI workspace</string>
+    <string name="ai_banner_title">Ask better questions about every document</string>
+    <string name="ai_banner_desc">Summarize pages, extract key points, and get fast answers from scanned files and notes.</string>
+    <string name="btn_try_it_now">Open assistant</string>
+    <string name="section_productivity_tools">Core tools</string>
+    <string name="section_tools_subtitle">Frequently used actions arranged for fast daily document work.</string>
+    <string name="fab_voice_text">Voice agent</string>
+    <string name="home_voice_live">Listening</string>
+    <string name="bg_content_desc">Decorative background</string>
+    <string name="dashboard_overview">Workspace overview</string>
+    <string name="dashboard_overview_caption">Track output, notes, and next actions at a glance.</string>
+    <string name="about_capstone">About ScanToPdf</string>
+    <string name="local_pdfs">Saved PDFs</string>
+    <string name="smart_notes">Smart Notes</string>
+    <string name="zero_count">0</string>
+    <string name="local_pdfs_caption">Ready to preview, share, or merge</string>
+    <string name="smart_notes_caption">Quick capture for ideas and drafts</string>
+
+    <string name="login_eyebrow">Secure access</string>
+    <string name="login_title">Welcome back</string>
+    <string name="login_subtitle">Sign in to continue scanning, saving, and managing documents professionally.</string>
+    <string name="login_form_title">Sign in to your workspace</string>
+    <string name="login_form_subtitle">Use email or Google to access synced scans, notes, and AI tools.</string>
+    <string name="dont_have_account">Need an account? Create one</string>
+
+    <string name="signup_eyebrow">New workspace</string>
+    <string name="signup_title">Create your account</string>
+    <string name="signup_subtitle_professional">Set up a secure document workspace in a minute.</string>
+    <string name="signup_form_title">Start your workspace</string>
+    <string name="signup_form_subtitle">Create an account to back up files, use AI tools, and organize notes across sessions.</string>
+
+    <string name="splash_badge">Professional document suite</string>
+    <string name="splash_tagline">Scan, organize, sign, and summarize documents with one clean workspace.</string>
+    <string name="splash_powered_by">Crafted by RG apps</string>
+    <string name="app_logo_desc">ScanToPdf logo</string>
+
+    <string name="presentation_card_badge">Class presentation</string>
+    <string name="presentation_card_title">Ready to present in under two minutes</string>
+    <string name="presentation_card_desc">Use the guided flow below to show document scanning, AI reasoning, and hands-free voice control without searching through the app live.</string>
+    <string name="presentation_bullet_scan">Scan or import a document and convert it into a polished PDF</string>
+    <string name="presentation_bullet_ai">Use AI to summarize, explain, and answer questions instantly</string>
+    <string name="presentation_bullet_voice">Control key screens with voice commands for a standout demo</string>
+    <string name="presentation_guide_button">Demo guide</string>
+    <string name="presentation_pitch_button">Practice pitch</string>
+    <string name="presentation_guide_title">Class Demo Guide</string>
+    <string name="presentation_guide_message">1. Start with the dashboard and explain that the app combines scanning, PDF tools, AI, and voice control in one workspace.\n\n2. Open a scan or import flow, capture a page, and save it as a PDF.\n\n3. Open AI Assistant and ask for a summary, key points, or a simplified explanation.\n\n4. Finish by showing that major screens can be controlled through the autonomous voice agent.</string>
+    <string name="presentation_pitch_title">Presentation Pitch</string>
+    <string name="presentation_pitch_body">ScanToPdf is a smart document workspace that helps users scan physical papers, turn them into organized PDFs, ask AI questions about the content, and even control the app by voice. It brings productivity, accessibility, and automation together in one mobile experience.</string>
+    <string name="presentation_pitch_spoken">ScanToPdf is a smart document workspace that lets users scan papers, convert them into PDFs, understand them with AI, and control the app with voice. It combines productivity, accessibility, and automation in one simple mobile experience.</string>
+    <string name="presentation_demo_ai">Open AI demo</string>
+    <string name="presentation_demo_scan">Open scanner</string>
+    <string name="practice_with_voice">Read with voice</string>
+    <string name="close_label">Close</string>
+    <string name="presentation_ai_prompt">Create a short class presentation pitch for ScanToPdf highlighting document scanning, AI assistance, PDF tools, and voice control.</string>
+
+    <string name="ai_prompt_summary">Summarize</string>
+    <string name="ai_prompt_pitch">Presentation pitch</string>
+    <string name="ai_prompt_explain">Explain simply</string>
+    <string name="ai_prompt_actions">Action items</string>
+    <string name="ai_prompt_summary_request">Summarize the document or conversation in 5 concise bullet points.</string>
+    <string name="ai_prompt_pitch_request">Turn this into a short presentation-ready explanation with a clear hook, the core features, and the final impact.</string>
+    <string name="ai_prompt_explain_request">Explain this in simple language that would make sense to a classroom audience.</string>
+    <string name="ai_prompt_actions_request">Extract the key points, next steps, and action items from this content.</string>
+
+    <string name="pdf_empty_title">No PDFs yet</string>
+    <string name="pdf_empty_subtitle">Create a sample scan or jump into the AI assistant so every screen still feels presentation-ready.</string>
+    <string name="pdf_empty_scan">Start a scan</string>
+    <string name="pdf_empty_ai">Open AI assistant</string>
+
+    <string name="notes_empty_title">No notes yet</string>
+    <string name="notes_empty_subtitle">Create a quick summary, class outline, or talking points before your presentation starts.</string>
+    <string name="notes_empty_create">Create first note</string>
 </resources>

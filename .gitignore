@@ -13,3 +13,9 @@
 .externalNativeBuild
 .cxx
 local.properties
+# Sensitive Google Services file
+app/google-services.json
+
+# Local configuration and keys
+
+.secrets

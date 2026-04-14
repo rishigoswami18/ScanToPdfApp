@@ -1,11 +1,12 @@
 package com.hrishipvt.scantopdf.data
 
 import androidx.room.*
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface NoteDao {
 
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(note: Note)
 
     @Update
@@ -15,8 +16,8 @@ interface NoteDao {
     suspend fun delete(note: Note)
 
     @Query("SELECT * FROM notes ORDER BY time DESC")
-    suspend fun getAllNotes(): List<Note>
+    fun getAllNotes(): Flow<List<Note>>
 
-    @Query("SELECT * FROM notes WHERE title LIKE '%' || :query || '%' ")
-    suspend fun search(query: String): List<Note>
+    @Query("SELECT * FROM notes WHERE title LIKE '%' || :query || '%' OR content LIKE '%' || :query || '%' ORDER BY time DESC")
+    fun searchNotes(query: String): Flow<List<Note>>
 }

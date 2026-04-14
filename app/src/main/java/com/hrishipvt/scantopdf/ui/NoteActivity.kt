@@ -1,227 +1,519 @@
 package com.hrishipvt.scantopdf.ui
 
+import android.content.Context
 import android.content.Intent
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
+import android.net.Uri
 import android.os.Bundle
-import android.widget.EditText
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import com.google.android.material.appbar.MaterialToolbar
-import com.google.android.material.button.MaterialButton
 import com.hrishipvt.scantopdf.R
+import com.hrishipvt.scantopdf.ai.GeminiApi
 import com.hrishipvt.scantopdf.data.Note
-import com.hrishipvt.scantopdf.data.NoteDatabase
+import com.hrishipvt.scantopdf.databinding.ActivityNoteBinding
+import com.hrishipvt.scantopdf.utils.FileUtils
 import com.hrishipvt.scantopdf.utils.FirebaseNoteBackup
 import com.hrishipvt.scantopdf.utils.NotePdfUtils
+import com.hrishipvt.scantopdf.viewmodel.NoteViewModel
+import com.hrishipvt.scantopdf.voice.VoiceEnabledActivity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.math.sqrt
 
-class NoteActivity : AppCompatActivity() {
+class NoteActivity : VoiceEnabledActivity(), SensorEventListener {
 
-    private lateinit var etTitle: EditText
-    private lateinit var etContent: EditText
+    private lateinit var binding: ActivityNoteBinding
+    private val viewModel: NoteViewModel by viewModels()
+    private var noteId: Int = -1
+    private var currentDialog: AlertDialog? = null
+    private var isReadingAloud = false
 
-    private var noteId: Int = -1   // ✅ Used for Edit Mode
+    private var sensorManager: SensorManager? = null
+    private var accelerometer: Sensor? = null
+    private var lastAcceleration = 0f
+    private var currentAcceleration = 0f
+    private var acceleration = 0f
+    private val shakeThreshold = 12f
+    private var isShakeDialogShowing = false
+
+    private val pickResume = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri?.let { handleResumeUpload(it) }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_note)
+        binding = ActivityNoteBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-        val toolbar: MaterialToolbar = findViewById(R.id.noteToolbar)
-        etTitle = findViewById(R.id.etNoteTitle)
-        etContent = findViewById(R.id.etNoteContent)
+        setupToolbar()
+        setupVoiceAssistant()
+        loadIntentData()
+        setupListeners()
+        setupSensors()
+    }
 
-        val btnSave: MaterialButton = findViewById(R.id.btnSaveNote)
-        val btnShare: MaterialButton = findViewById(R.id.btnShareNote)
-        val btnPdf: MaterialButton = findViewById(R.id.btnConvertPdf)
-        val btnBackup: MaterialButton = findViewById(R.id.btnBackup)
-        val btnViewNotes: MaterialButton = findViewById(R.id.btnViewNotes)
+    override fun voiceCommandHelp(): String {
+        return "Try saying save note, share note, convert to PDF, read note, summarize note, title followed by text, write followed by text, or clear note."
+    }
 
-        btnViewNotes.setOnClickListener {
-            startActivity(Intent(this, NotesListActivity::class.java))
-        }
+    override fun handleScreenVoiceCommand(rawCommand: String, normalizedCommand: String): Boolean {
+        val titleText = textAfterCommand(rawCommand, "title ", "set title ")
+        val bodyText = textAfterCommand(rawCommand, "write ", "dictate ", "append ")
+        val replaceText = textAfterCommand(rawCommand, "replace note with ", "replace content with ")
 
+        return when {
+            titleText.isNotEmpty() -> {
+                binding.etNoteTitle.setText(titleText)
+                speak("Updated note title.")
+                true
+            }
 
+            replaceText.isNotEmpty() -> {
+                binding.etNoteContent.setText(replaceText)
+                speak("Replaced note content.")
+                true
+            }
 
-        // ✅ Back Button
-        toolbar.setNavigationOnClickListener { finish() }
+            bodyText.isNotEmpty() -> {
+                appendToNote(bodyText)
+                speak("Added the text to your note.")
+                true
+            }
 
-        // ✅ Get Intent Data (Edit Note Mode)
-        noteId = intent.getIntExtra("noteId", -1)
-        val oldTitle = intent.getStringExtra("title")
-        val oldContent = intent.getStringExtra("content")
+            normalizedCommand.contains("save") || normalizedCommand.contains("done") -> {
+                speak("Saving note.")
+                saveNote()
+                true
+            }
 
-        if (noteId != -1) {
-            etTitle.setText(oldTitle)
-            etContent.setText(oldContent)
-            toolbar.title = "Edit Note"
-        } else {
-            toolbar.title = "New Note"
-        }
+            normalizedCommand.contains("share") || normalizedCommand.contains("send") -> {
+                speak("Opening share options.")
+                shareNote()
+                true
+            }
 
-        // ✅ Save Note
-        btnSave.setOnClickListener {
-            saveNote()
-        }
+            normalizedCommand.contains("pdf") || normalizedCommand.contains("convert") -> {
+                speak("Converting note to PDF.")
+                convertToPdf()
+                true
+            }
 
+            normalizedCommand.contains("backup") || normalizedCommand.contains("cloud") -> {
+                speak("Backing up note.")
+                backupToFirebase()
+                true
+            }
 
-        // ✅ Share Note
-        btnShare.setOnClickListener {
-            shareNote()
-        }
+            normalizedCommand.contains("read") || normalizedCommand.contains("aloud") || normalizedCommand.contains("speak") -> {
+                toggleReadAloud()
+                true
+            }
 
-        // ✅ Convert Note → PDF
-        btnPdf.setOnClickListener {
-            convertToPdf()
-        }
+            normalizedCommand.contains("summarize") || normalizedCommand.contains("summary") -> {
+                speak("Summarizing note.")
+                processAiTask("Summarize this note briefly:", "Summarizing...")
+                true
+            }
 
-        // ✅ Backup Note → Firebase
-        btnBackup.setOnClickListener {
-            backupToFirebase()
+            normalizedCommand.contains("grammar") || normalizedCommand.contains("fix") -> {
+                speak("Fixing grammar.")
+                processAiTask("Correct grammar and spelling in this note:", "Fixing grammar...")
+                true
+            }
+
+            normalizedCommand.contains("professional tone") || normalizedCommand.contains("polish") -> {
+                speak("Rewriting in a professional tone.")
+                processAiTask("Rewrite this note in a professional business tone:", "Polishing...")
+                true
+            }
+
+            normalizedCommand.contains("clear") || normalizedCommand.contains("delete text") -> {
+                binding.etNoteContent.text.clear()
+                speak("Cleared note content.")
+                true
+            }
+
+            normalizedCommand.contains("analyze resume") || normalizedCommand.contains("upload resume") -> {
+                speak("Select a resume file to analyze.")
+                pickResume.launch("*/*")
+                true
+            }
+
+            else -> false
         }
     }
 
-    // ✅ SAVE or UPDATE NOTE
-    private fun saveNote() {
+    override fun onUnknownVoiceCommand(rawCommand: String, normalizedCommand: String) {
+        speak("Writing that for you.")
+        binding.aiProgressBar.visibility = android.view.View.VISIBLE
 
-        val title = etTitle.text.toString().trim()
-        val content = etContent.text.toString().trim()
+        GeminiApi.processAiTask(
+            prompt = "You are an AI writing assistant inside a note taking app. The user commanded: '$rawCommand'. Provide only the requested note content so it can be pasted directly into the document.",
+            content = "",
+            onSuccess = { answer ->
+                binding.aiProgressBar.visibility = android.view.View.GONE
+                appendToNote(answer.trim())
+                speak("I added that content to your note.")
+            },
+            onError = {
+                binding.aiProgressBar.visibility = android.view.View.GONE
+                speak("I could not generate that content.")
+            }
+        )
+    }
 
-        if (content.isEmpty()) {
-            Toast.makeText(this, "Note is empty!", Toast.LENGTH_SHORT).show()
+    override fun onVoiceUtteranceCompleted(utteranceId: String?) {
+        if (utteranceId == "READ_ALOUD") {
+            runOnUiThread {
+                isReadingAloud = false
+                binding.btnReadAloud.setImageResource(R.drawable.ic_volume_up)
+            }
+        }
+    }
+
+    private fun appendToNote(text: String) {
+        val currentText = binding.etNoteContent.text.toString().trim()
+        val mergedText = if (currentText.isEmpty()) text else "$currentText\n\n$text"
+        binding.etNoteContent.setText(mergedText.trim())
+        binding.etNoteContent.setSelection(binding.etNoteContent.text?.length ?: 0)
+    }
+
+    private fun setupSensors() {
+        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        accelerometer = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+
+        currentAcceleration = SensorManager.GRAVITY_EARTH
+        lastAcceleration = SensorManager.GRAVITY_EARTH
+        acceleration = 0f
+    }
+
+    override fun onResume() {
+        super.onResume()
+        accelerometer?.let {
+            sensorManager?.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
+        }
+    }
+
+    override fun onPause() {
+        sensorManager?.unregisterListener(this)
+        super.onPause()
+    }
+
+    override fun onSensorChanged(event: SensorEvent?) {
+        if (event == null || isShakeDialogShowing) return
+
+        val x = event.values[0]
+        val y = event.values[1]
+        val z = event.values[2]
+
+        lastAcceleration = currentAcceleration
+        currentAcceleration = sqrt((x * x + y * y + z * z).toDouble()).toFloat()
+        val delta = currentAcceleration - lastAcceleration
+        acceleration = acceleration * 0.9f + delta
+
+        if (acceleration > shakeThreshold && binding.etNoteContent.text?.isNotEmpty() == true) {
+            isShakeDialogShowing = true
+            showShakeToClearDialog()
+        }
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
+
+    private fun showShakeToClearDialog() {
+        currentDialog = AlertDialog.Builder(this)
+            .setTitle("Shake Detected")
+            .setMessage("Do you want to clear the current note text?")
+            .setPositiveButton("Clear Text") { _, _ ->
+                binding.etNoteContent.text.clear()
+                isShakeDialogShowing = false
+            }
+            .setNegativeButton("Cancel") { _, _ ->
+                isShakeDialogShowing = false
+            }
+            .setOnDismissListener {
+                isShakeDialogShowing = false
+            }
+            .show()
+    }
+
+    private fun setupToolbar() {
+        setSupportActionBar(binding.noteToolbar)
+        supportActionBar?.setDisplayShowTitleEnabled(false)
+        binding.noteToolbar.setNavigationOnClickListener { onBackPressedDispatcher.onBackPressed() }
+    }
+
+    private fun loadIntentData() {
+        noteId = intent.getIntExtra("noteId", -1)
+        val title = intent.getStringExtra("title")
+        val content = intent.getStringExtra("content")
+
+        if (noteId != -1) {
+            binding.etNoteTitle.setText(title)
+            binding.etNoteContent.setText(content)
+            binding.noteToolbar.title = "Edit Note"
+        } else {
+            binding.noteToolbar.title = "New Note"
+        }
+    }
+
+    private fun setupListeners() {
+        binding.btnSaveNote.setOnClickListener { saveNote() }
+        binding.btnShareNote.setOnClickListener { shareNote() }
+        binding.btnConvertPdf.setOnClickListener { convertToPdf() }
+        binding.btnBackup.setOnClickListener { backupToFirebase() }
+        binding.btnAiEnhance.setOnClickListener { showAiEnhanceDialog() }
+        binding.btnReadAloud.setOnClickListener { toggleReadAloud() }
+    }
+
+    private fun toggleReadAloud() {
+        if (isReadingAloud) {
+            stopVoiceSpeech()
+            isReadingAloud = false
+            binding.btnReadAloud.setImageResource(R.drawable.ic_volume_up)
             return
         }
 
+        val content = binding.etNoteContent.text.toString().trim()
+        if (content.isEmpty()) {
+            Toast.makeText(this, "Nothing to read!", Toast.LENGTH_SHORT).show()
+            speak("The note is currently empty.")
+            return
+        }
+
+        isReadingAloud = true
+        binding.btnReadAloud.setImageResource(android.R.drawable.ic_media_pause)
+        speak(content, "READ_ALOUD")
+    }
+
+    private fun showAiEnhanceDialog() {
+        val options = arrayOf(
+            "Summarize",
+            "Fix Grammar",
+            "Professional Tone",
+            "Translate to Hindi",
+            "Translate to Spanish",
+            "Suggest Title",
+            "Bullet Points",
+            "ATS Resume Analysis (Upload)",
+            "Enhance Current Text as Resume"
+        )
+        currentDialog = AlertDialog.Builder(this)
+            .setTitle("AI Note Assistant")
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> processAiTask("Summarize this note briefly:", "Summarizing...")
+                    1 -> processAiTask("Correct grammar and spelling in this note:", "Fixing grammar...")
+                    2 -> processAiTask("Rewrite this note in a professional business tone:", "Polishing...")
+                    3 -> processAiTask("Translate this note to Hindi:", "Translating...")
+                    4 -> processAiTask("Translate this note to Spanish:", "Translating...")
+                    5 -> suggestAiTitle()
+                    6 -> processAiTask("Convert this note into a clean bulleted list:", "Organizing...")
+                    7 -> pickResume.launch("*/*")
+                    8 -> showAtsJobDialog(binding.etNoteContent.text.toString())
+                }
+            }
+            .show()
+    }
+
+    private fun handleResumeUpload(uri: Uri) {
+        binding.aiProgressBar.visibility = android.view.View.VISIBLE
         lifecycleScope.launch(Dispatchers.IO) {
-
-            val db = NoteDatabase.getDatabase(this@NoteActivity)
-            val dao = db.noteDao()
-
-            val note = Note(
-                id = if (noteId == -1) 0 else noteId,
-                title = if (title.isEmpty()) "Untitled Note" else title,
-                content = content
-            )
-
-            if (noteId == -1) {
-                dao.insert(note)
-            } else {
-                dao.update(note)
+            val content = try {
+                val mimeType = contentResolver.getType(uri)
+                when {
+                    mimeType?.contains("pdf") == true -> FileUtils.getTextFromPdf(contentResolver, uri)
+                    mimeType?.contains("word") == true || mimeType?.contains("officedocument") == true -> FileUtils.getTextFromDocx(contentResolver, uri)
+                    else -> FileUtils.readTextFromUri(contentResolver, uri)
+                }
+            } catch (error: Exception) {
+                ""
             }
 
             withContext(Dispatchers.Main) {
-                Toast.makeText(this@NoteActivity, "✅ Note Saved!", Toast.LENGTH_SHORT).show()
-
-                // ✅ Go Back to Notes List
-                val intent = Intent(this@NoteActivity, NotesListActivity::class.java)
-                intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
-                startActivity(intent)
-
-                finish()
+                binding.aiProgressBar.visibility = android.view.View.GONE
+                if (content.isNotEmpty()) {
+                    binding.etNoteContent.setText(content)
+                    showAtsJobDialog(content)
+                } else {
+                    Toast.makeText(this@NoteActivity, "Could not extract text from file", Toast.LENGTH_SHORT).show()
+                }
             }
-
         }
     }
 
-    // ✅ DELETE CONFIRMATION
-    private fun confirmDelete() {
+    private fun showAtsJobDialog(resumeText: String) {
+        if (resumeText.isEmpty()) {
+            Toast.makeText(this, "Resume content is empty", Toast.LENGTH_SHORT).show()
+            return
+        }
 
-        AlertDialog.Builder(this)
-            .setTitle("Delete Note?")
-            .setMessage("Are you sure you want to delete this note permanently?")
-            .setPositiveButton("Delete") { _, _ ->
-                deleteNote()
+        val input = android.widget.EditText(this).apply {
+            hint = "Paste Job Description here..."
+        }
+        currentDialog = AlertDialog.Builder(this)
+            .setTitle("ATS Optimizer")
+            .setMessage("Provide the Job Description to analyze and enhance your resume.")
+            .setView(input)
+            .setPositiveButton("Analyze & Enhance") { _, _ ->
+                val jd = input.text.toString().trim()
+                if (jd.isNotEmpty()) {
+                    val prompt = """
+                        Act as an expert ATS optimizer and professional resume writer.
+                        
+                        1. Provide a Match Score (0-100%) for the current resume against the job description.
+                        2. Identify missing critical keywords and skills.
+                        3. Generate an enhanced version of the resume that remains truthful but is optimized for the job description.
+                        
+                        Job Description: $jd
+                        
+                        Current Resume: $resumeText
+                        
+                        Format your response as:
+                        MATCH SCORE: [Score]%
+                        
+                        MISSING KEYWORDS:
+                        - [Keyword 1]
+                        
+                        ENHANCED RESUME:
+                        [Full enhanced resume text here]
+                    """.trimIndent()
+                    processAiTask(prompt, "Generating ATS optimized resume...")
+                }
             }
             .setNegativeButton("Cancel", null)
             .show()
     }
 
-    private fun deleteNote() {
+    private fun suggestAiTitle() {
+        val content = binding.etNoteContent.text.toString().trim()
+        if (content.isEmpty()) {
+            Toast.makeText(this, "Note is empty", Toast.LENGTH_SHORT).show()
+            return
+        }
 
-        lifecycleScope.launch(Dispatchers.IO) {
-
-            val db = NoteDatabase.getDatabase(this@NoteActivity)
-            val dao = db.noteDao()
-
-            val note = Note(
-                id = noteId,
-                title = "",
-                content = ""
-            )
-
-            dao.delete(note)
-
-            withContext(Dispatchers.Main) {
-                Toast.makeText(this@NoteActivity, "🗑 Note Deleted!", Toast.LENGTH_SHORT).show()
-                finish()
+        binding.aiProgressBar.visibility = android.view.View.VISIBLE
+        GeminiApi.processAiTask(
+            "Suggest a short, 3-5 word professional title for this note content. Return only the title:",
+            content,
+            onSuccess = { result ->
+                binding.aiProgressBar.visibility = android.view.View.GONE
+                binding.etNoteTitle.setText(result.removeSurrounding("\""))
+                Toast.makeText(this, "Title suggested!", Toast.LENGTH_SHORT).show()
+            },
+            onError = { error ->
+                binding.aiProgressBar.visibility = android.view.View.GONE
+                Toast.makeText(this, "AI Error: $error", Toast.LENGTH_SHORT).show()
             }
-        }
-    }
-
-    // ✅ SHARE NOTE
-    private fun shareNote() {
-
-        val title = etTitle.text.toString().trim()
-        val content = etContent.text.toString().trim()
-
-        if (content.isEmpty()) {
-            Toast.makeText(this, "Nothing to share!", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(Intent.EXTRA_SUBJECT, title)
-            putExtra(Intent.EXTRA_TEXT, content)
-        }
-
-        startActivity(Intent.createChooser(intent, "Share Note via"))
-    }
-
-    // ✅ CONVERT NOTE → PDF
-    private fun convertToPdf() {
-
-        val title = etTitle.text.toString().trim()
-        val content = etContent.text.toString().trim()
-
-        if (content.isEmpty()) {
-            Toast.makeText(this, "Write something first!", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val pdfFile = NotePdfUtils.createPdf(
-            this,
-            if (title.isEmpty()) "Note" else title,
-            content
         )
-
-        Toast.makeText(
-            this,
-            "✅ PDF Saved:\n${pdfFile.absolutePath}",
-            Toast.LENGTH_LONG
-        ).show()
     }
 
-    // ✅ BACKUP NOTE → FIREBASE
-    private fun backupToFirebase() {
+    private fun processAiTask(prompt: String, loadingMsg: String) {
+        val content = binding.etNoteContent.text.toString().trim()
+        if (content.isEmpty() && !prompt.contains("Resume")) {
+            Toast.makeText(this, "Content is empty", Toast.LENGTH_SHORT).show()
+            return
+        }
 
-        val title = etTitle.text.toString().trim()
-        val content = etContent.text.toString().trim()
+        binding.aiProgressBar.visibility = android.view.View.VISIBLE
+        Toast.makeText(this, loadingMsg, Toast.LENGTH_SHORT).show()
+
+        GeminiApi.processAiTask(
+            prompt,
+            content,
+            onSuccess = { result ->
+                binding.aiProgressBar.visibility = android.view.View.GONE
+                showAiResultDialog(result)
+            },
+            onError = { error ->
+                binding.aiProgressBar.visibility = android.view.View.GONE
+                Toast.makeText(this, "AI Error: $error", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+
+    private fun showAiResultDialog(result: String) {
+        currentDialog = AlertDialog.Builder(this)
+            .setTitle("AI Insights & Enhanced Content")
+            .setMessage(result)
+            .setPositiveButton("Apply Enhanced Text") { _, _ ->
+                val enhancedPart = if (result.contains("ENHANCED RESUME:")) {
+                    result.substringAfter("ENHANCED RESUME:").trim()
+                } else {
+                    result
+                }
+                binding.etNoteContent.setText(enhancedPart)
+            }
+            .setNegativeButton("Close", null)
+            .show()
+    }
+
+    private fun saveNote() {
+        val title = binding.etNoteTitle.text.toString().trim()
+        val content = binding.etNoteContent.text.toString().trim()
 
         if (content.isEmpty()) {
-            Toast.makeText(this, "Empty note cannot backup!", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Note cannot be empty", Toast.LENGTH_SHORT).show()
             return
         }
 
         val note = Note(
-            title = if (title.isEmpty()) "Untitled Note" else title,
-            content = content
+            id = if (noteId == -1) 0 else noteId,
+            title = if (title.isEmpty()) "Untitled" else title,
+            content = content,
+            time = System.currentTimeMillis()
         )
 
-        FirebaseNoteBackup.backup(note)
+        viewModel.saveNote(note)
+        Toast.makeText(this, "Note Saved", Toast.LENGTH_SHORT).show()
+        finish()
+    }
 
-        Toast.makeText(this, "✅ Note Backed Up to Firebase!", Toast.LENGTH_SHORT).show()
+    private fun shareNote() {
+        val title = binding.etNoteTitle.text.toString().trim()
+        val content = binding.etNoteContent.text.toString().trim()
+        if (content.isEmpty()) return
+
+        val shareText = if (title.isNotEmpty()) "$title\n\n$content" else content
+        val sendIntent = Intent().apply {
+            action = Intent.ACTION_SEND
+            putExtra(Intent.EXTRA_TEXT, shareText)
+            type = "text/plain"
+        }
+        startActivity(Intent.createChooser(sendIntent, "Share note"))
+    }
+
+    private fun convertToPdf() {
+        val title = binding.etNoteTitle.text.toString().trim()
+        val content = binding.etNoteContent.text.toString().trim()
+        if (content.isEmpty()) return
+
+        val pdfFile = NotePdfUtils.createPdf(this, if (title.isEmpty()) "Note" else title, content)
+        if (pdfFile != null) {
+            Toast.makeText(this, "PDF Saved: ${pdfFile.name}", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(this, "Failed to create PDF", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun backupToFirebase() {
+        val title = binding.etNoteTitle.text.toString().trim()
+        val content = binding.etNoteContent.text.toString().trim()
+        if (content.isEmpty()) return
+
+        val note = Note(title = title, content = content)
+        FirebaseNoteBackup.backup(note)
+        Toast.makeText(this, "Backup Successful", Toast.LENGTH_SHORT).show()
+    }
+
+    override fun onDestroy() {
+        currentDialog?.dismiss()
+        super.onDestroy()
     }
 }

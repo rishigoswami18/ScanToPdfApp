@@ -1,6 +1,11 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <style name="Theme.ScanToPdf" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="colorPrimary">@color/purple_500</item>
-        <item name="colorSecondary">@color/teal_200</item>
+        <item name="colorPrimary">@color/primary_warm</item>
+        <item name="colorSecondary">@color/secondary_warm</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="android:windowBackground">@color/background</item>
+        <item name="android:statusBarColor">@color/background</item>
+        <item name="android:navigationBarColor">@color/bottom_bar</item>
+        <item name="android:windowLightStatusBar">false</item>
     </style>
 </resources>

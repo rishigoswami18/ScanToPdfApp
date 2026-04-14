@@ -2,109 +2,172 @@ package com.hrishipvt.scantopdf.ui
 
 import android.content.Intent
 import android.os.Bundle
-import android.widget.EditText
-import androidx.appcompat.app.AppCompatActivity
+import android.view.View
+import androidx.activity.viewModels
 import androidx.core.widget.addTextChangedListener
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.floatingactionbutton.FloatingActionButton
-import com.hrishipvt.scantopdf.R
 import com.hrishipvt.scantopdf.adapter.NotesAdapter
-import com.hrishipvt.scantopdf.data.NoteDatabase
-import kotlinx.coroutines.Dispatchers
+import com.hrishipvt.scantopdf.data.Note
+import com.hrishipvt.scantopdf.databinding.ActivityNotesListBinding
+import com.hrishipvt.scantopdf.viewmodel.NoteViewModel
+import com.hrishipvt.scantopdf.voice.VoiceEnabledActivity
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
-class NotesListActivity : AppCompatActivity() {
+class NotesListActivity : VoiceEnabledActivity() {
 
-    private lateinit var recyclerView: RecyclerView
-    private lateinit var adapter: NotesAdapter
-    private lateinit var searchBar: EditText
-
-    private var notesList = ArrayList<com.hrishipvt.scantopdf.data.Note>()
+    private lateinit var binding: ActivityNotesListBinding
+    private val viewModel: NoteViewModel by viewModels()
+    private lateinit var notesAdapter: NotesAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_notes_list)
+        binding = ActivityNotesListBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-        recyclerView = findViewById(R.id.recyclerNotes)
-        searchBar = findViewById(R.id.searchNotes)
+        setupToolbar()
+        setupVoiceAssistant()
+        setupRecyclerView()
+        setupListeners()
+        observeViewModel()
+    }
 
-        val fabAdd: FloatingActionButton = findViewById(R.id.fabAddNote)
+    override fun voiceCommandHelp(): String {
+        return "Try saying new note, search followed by text, open first note, open note followed by its title, or delete first note."
+    }
 
-        recyclerView.layoutManager = LinearLayoutManager(this)
+    override fun handleScreenVoiceCommand(rawCommand: String, normalizedCommand: String): Boolean {
+        val searchQuery = textAfterCommand(rawCommand, "search ", "find note ", "search note ")
+        val openQuery = textAfterCommand(rawCommand, "open note ")
+        val deleteQuery = textAfterCommand(rawCommand, "delete note ", "remove note ")
 
-        adapter = NotesAdapter(
-            notesList,
-            onClick = { note ->
-                val intent = Intent(this, NoteActivity::class.java)
-                intent.putExtra("noteId", note.id)
-                intent.putExtra("title", note.title)
-                intent.putExtra("content", note.content)
-                startActivity(intent)
-            },
-            onDelete = { note ->
-                deleteNote(note)
+        return when {
+            normalizedCommand.contains("new") || normalizedCommand.contains("create") || normalizedCommand.contains("add") -> {
+                speak("Creating a new note.")
+                binding.fabAddNote.performClick()
+                true
             }
+
+            searchQuery.isNotEmpty() -> {
+                binding.searchNotes.setText(searchQuery)
+                speak("Searching notes for $searchQuery.")
+                true
+            }
+
+            normalizedCommand.contains("open first") -> {
+                val note = notesAdapter.currentList.firstOrNull()
+                if (note != null) {
+                    openNote(note)
+                    speak("Opening the first note.")
+                } else {
+                    speak("There are no notes to open.")
+                }
+                true
+            }
+
+            openQuery.isNotEmpty() -> {
+                val note = notesAdapter.currentList.firstOrNull {
+                    it.title.contains(openQuery, ignoreCase = true) || it.content.contains(openQuery, ignoreCase = true)
+                }
+                if (note != null) {
+                    openNote(note)
+                    speak("Opening ${note.title}.")
+                } else {
+                    speak("I could not find a note matching $openQuery.")
+                }
+                true
+            }
+
+            normalizedCommand.contains("delete first") -> {
+                val note = notesAdapter.currentList.firstOrNull()
+                if (note != null) {
+                    viewModel.deleteNote(note)
+                    speak("Deleted ${note.title}.")
+                } else {
+                    speak("There are no notes to delete.")
+                }
+                true
+            }
+
+            deleteQuery.isNotEmpty() -> {
+                val note = notesAdapter.currentList.firstOrNull {
+                    it.title.contains(deleteQuery, ignoreCase = true) || it.content.contains(deleteQuery, ignoreCase = true)
+                }
+                if (note != null) {
+                    viewModel.deleteNote(note)
+                    speak("Deleted ${note.title}.")
+                } else {
+                    speak("I could not find a note matching $deleteQuery.")
+                }
+                true
+            }
+
+            normalizedCommand.contains("how many notes") || normalizedCommand.contains("status") -> {
+                speak("You currently have ${notesAdapter.currentList.size} notes.")
+                true
+            }
+
+            else -> false
+        }
+    }
+
+    private fun setupToolbar() {
+        setSupportActionBar(binding.toolbar)
+        supportActionBar?.setDisplayShowTitleEnabled(false)
+        binding.toolbar.setNavigationOnClickListener { onBackPressedDispatcher.onBackPressed() }
+    }
+
+    private fun openNote(note: Note) {
+        val intent = Intent(this, NoteActivity::class.java).apply {
+            putExtra("noteId", note.id)
+            putExtra("title", note.title)
+            putExtra("content", note.content)
+        }
+        startActivity(intent)
+    }
+
+    private fun setupRecyclerView() {
+        notesAdapter = NotesAdapter(
+            onClick = { note -> openNote(note) },
+            onDelete = { note -> viewModel.deleteNote(note) }
         )
 
-        recyclerView.adapter = adapter
+        binding.recyclerNotes.apply {
+            layoutManager = LinearLayoutManager(this@NotesListActivity)
+            adapter = notesAdapter
+        }
+    }
 
-        // ✅ Add New Note
-        fabAdd.setOnClickListener {
+    private fun setupListeners() {
+        binding.fabAddNote.setOnClickListener {
             startActivity(Intent(this, NoteActivity::class.java))
         }
 
-        // ✅ Search Notes Live
-        searchBar.addTextChangedListener {
-            filterNotes(it.toString())
+        binding.btnCreateFirstNote.setOnClickListener {
+            startActivity(Intent(this, NoteActivity::class.java))
+        }
+
+        binding.searchNotes.addTextChangedListener {
+            viewModel.updateSearchQuery(it.toString())
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        loadNotes()
-    }
-
-    // ✅ Load Notes from Database
-    private fun loadNotes() {
-
-        lifecycleScope.launch(Dispatchers.IO) {
-
-            val db = NoteDatabase.getDatabase(this@NotesListActivity)
-            val notes = db.noteDao().getAllNotes()
-
-            withContext(Dispatchers.Main) {
-
-                notesList.clear()
-                notesList.addAll(notes)
-
-                adapter.notifyDataSetChanged()
+    private fun observeViewModel() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.notes.collect { notes ->
+                    notesAdapter.submitList(notes)
+                    if (notes.isEmpty()) {
+                        binding.emptyState.visibility = View.VISIBLE
+                        binding.recyclerNotes.visibility = View.GONE
+                    } else {
+                        binding.emptyState.visibility = View.GONE
+                        binding.recyclerNotes.visibility = View.VISIBLE
+                    }
+                }
             }
         }
-    }
-
-    // ✅ Delete Note
-    private fun deleteNote(note: com.hrishipvt.scantopdf.data.Note) {
-
-        lifecycleScope.launch(Dispatchers.IO) {
-
-            val db = NoteDatabase.getDatabase(this@NotesListActivity)
-            db.noteDao().delete(note)
-
-            loadNotes()
-        }
-    }
-
-    // ✅ Filter Notes
-    private fun filterNotes(query: String) {
-
-        val filtered = notesList.filter {
-            it.title.contains(query, true) ||
-                    it.content.contains(query, true)
-        }
-
-        adapter.updateList(filtered)
     }
 }

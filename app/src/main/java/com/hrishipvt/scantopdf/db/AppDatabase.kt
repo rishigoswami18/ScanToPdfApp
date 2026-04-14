@@ -8,7 +8,11 @@ import androidx.room.RoomDatabase
 import com.hrishipvt.scantopdf.view.ChatEntity
 import com.hrishipvt.scantopdf.view.ChatDao
 
-@Database(entities = [ChatEntity::class], version = AppDatabase.DATABASE_VERSION)
+@Database(
+    entities = [ChatEntity::class],
+    version = AppDatabase.DATABASE_VERSION,
+    exportSchema = false
+)
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun chatDao(): ChatDao

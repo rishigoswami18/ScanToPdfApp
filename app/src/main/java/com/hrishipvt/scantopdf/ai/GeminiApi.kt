@@ -5,7 +5,6 @@ import android.net.Uri
 import com.google.firebase.functions.FirebaseFunctions
 import com.hrishipvt.scantopdf.utils.FileUtils
 
-
 object GeminiApi {
     fun chatWithFile(
         userMessage: String,
@@ -24,6 +23,35 @@ object GeminiApi {
             "fileBase64" to base64Data,
             "mimeType" to mimeType,
             "isChat" to true
+        )
+
+        functions.getHttpsCallable("summarizePdf")
+            .call(data)
+            .addOnSuccessListener { result ->
+                val resultData = result.data as? Map<*, *>
+                onSuccess(resultData?.get("summary") as? String ?: "No response")
+            }
+            .addOnFailureListener { e ->
+                onError(e.message ?: "AI error")
+            }
+    }
+
+    /**
+     * General purpose AI task handler for text-only operations.
+     */
+    fun processAiTask(
+        prompt: String,
+        content: String,
+        onSuccess: (String) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        val functions = FirebaseFunctions.getInstance("us-central1")
+        
+        val fullMessage = "$prompt\n\nContent:\n$content"
+        
+        val data = hashMapOf(
+            "text" to fullMessage,
+            "isChat" to false
         )
 
         functions.getHttpsCallable("summarizePdf")

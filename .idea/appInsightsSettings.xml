@@ -8,10 +8,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="com.hrishipvt.scantopdf" />
-                  <option name="mobileSdkAppId" value="1:979490303566:android:631693aaf6a46f64c25d1f" />
-                  <option name="projectId" value="scantopdf-818b2" />
-                  <option name="projectNumber" value="979490303566" />
+                  <option name="appId" value="PLACEHOLDER" />
+                  <option name="mobileSdkAppId" value="" />
+                  <option name="projectId" value="" />
+                  <option name="projectNumber" value="" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />

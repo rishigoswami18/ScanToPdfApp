@@ -5,19 +5,24 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.hrishipvt.scantopdf.R
 import com.hrishipvt.scantopdf.data.Note
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class NotesAdapter(
-    private var notes: List<Note>,
-    val onClick: (Note) -> Unit,
-    val onDelete: (Note) -> Unit
-) : RecyclerView.Adapter<NotesAdapter.NoteHolder>() {
+    private val onClick: (Note) -> Unit,
+    private val onDelete: (Note) -> Unit
+) : ListAdapter<Note, NotesAdapter.NoteHolder>(NoteDiffCallback()) {
 
     class NoteHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val title: TextView = itemView.findViewById(R.id.txtTitle)
         val content: TextView = itemView.findViewById(R.id.txtContent)
+        val date: TextView = itemView.findViewById(R.id.txtDate)
         val delete: ImageView = itemView.findViewById(R.id.btnDelete)
     }
 
@@ -28,15 +33,13 @@ class NotesAdapter(
     }
 
     override fun onBindViewHolder(holder: NoteHolder, position: Int) {
-
-        val note = notes[position]
+        val note = getItem(position)
 
         holder.title.text = note.title
-        holder.content.text =
-            if (note.content.length > 60)
-                note.content.substring(0, 60) + "..."
-            else
-                note.content
+        holder.content.text = note.content
+        
+        val sdf = SimpleDateFormat("dd MMM, yyyy", Locale.getDefault())
+        holder.date.text = sdf.format(Date(note.time))
 
         holder.itemView.setOnClickListener {
             onClick(note)
@@ -47,10 +50,13 @@ class NotesAdapter(
         }
     }
 
-    override fun getItemCount(): Int = notes.size
+    class NoteDiffCallback : DiffUtil.ItemCallback<Note>() {
+        override fun areItemsTheSame(oldItem: Note, newItem: Note): Boolean {
+            return oldItem.id == newItem.id
+        }
 
-    fun updateList(newList: List<Note>) {
-        notes = newList
-        notifyDataSetChanged()
+        override fun areContentsTheSame(oldItem: Note, newItem: Note): Boolean {
+            return oldItem == newItem
+        }
     }
 }

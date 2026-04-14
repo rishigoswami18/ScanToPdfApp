@@ -1,169 +1,164 @@
 <?xml version="1.0" encoding="utf-8"?>
-
-<androidx.constraintlayout.widget.ConstraintLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/white">
+    android:background="@color/background">
 
-
-    <!-- ✅ Toolbar -->
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/noteToolbar"
+    <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        android:background="#D30000"
-        app:navigationIcon="@drawable/ic_back"
-        app:title="Create Note"
-        app:titleTextColor="@android:color/white"
-        app:layout_constraintTop_toTopOf="parent" />
-
-
-    <!-- ✅ Title -->
-    <EditText
-        android:id="@+id/etNoteTitle"
-        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
+        android:background="@color/surface"
+        app:elevation="0dp">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/noteToolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            app:navigationIcon="@android:drawable/ic_menu_revert"
+            app:title="Edit Note"
+            app:titleTextColor="@color/text_primary" />
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:paddingBottom="100dp"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="20dp">
+
+            <EditText
+                android:id="@+id/etNoteTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@null"
+                android:hint="Title"
+                android:inputType="textCapSentences"
+                android:textColor="@color/text_primary"
+                android:textColorHint="@color/text_secondary"
+                android:textSize="24sp"
+                android:textStyle="bold" />
+
+            <EditText
+                android:id="@+id/etNoteContent"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:background="@null"
+                android:gravity="top"
+                android:hint="Start typing..."
+                android:inputType="textMultiLine|textCapSentences"
+                android:minHeight="300dp"
+                android:textColor="@color/text_primary"
+                android:textColorHint="@color/text_secondary"
+                android:textSize="18sp" />
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- Voice Control FAB -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabVoiceCommand"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
         android:layout_marginEnd="16dp"
-        android:layout_marginTop="16dp"
-        android:background="@null"
-        android:hint="Title"
-        android:textSize="22sp"
+        android:layout_marginBottom="88dp"
+        android:src="@drawable/ic_mic"
+        app:backgroundTint="@color/primary_warm"
+        app:tint="@color/surface"
+        android:contentDescription="@string/voice_command" />
 
-        android:textStyle="bold"
-        android:padding="6dp"
-        app:layout_constraintTop_toBottomOf="@id/noteToolbar"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-
-    <!-- ✅ Content -->
-    <EditText
-        android:id="@+id/etNoteContent"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:layout_margin="16dp"
-        android:background="@null"
-        android:gravity="top"
-        android:hint="Start typing..."
-        android:textSize="16sp"
-        android:padding="8dp"
-        app:layout_constraintTop_toBottomOf="@id/etNoteTitle"
-        app:layout_constraintBottom_toTopOf="@id/buttonContainer"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-
-    <!-- ✅ Bottom Buttons Container -->
-    <LinearLayout
-        android:id="@+id/buttonContainer"
-        android:layout_width="0dp"
+    <com.google.android.material.bottomappbar.BottomAppBar
+        android:id="@+id/bottomAppBar"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp"
-        android:background="#FAFAFA"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        android:layout_gravity="bottom"
+        app:backgroundTint="@color/surface"
+        app:fabAlignmentMode="end">
 
-
-        <!-- Row 1 -->
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:layout_height="match_parent"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="12dp"
+            android:paddingEnd="80dp">
 
-            <!-- ✅ Save Note -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnSaveNote"
-                android:layout_width="0dp"
-                android:layout_height="56dp"
-                android:layout_weight="1"
-                android:layout_marginEnd="8dp"
-                android:text="Save Note"
-                android:textColor="@android:color/white"
-                app:cornerRadius="14dp"
-                app:backgroundTint="#D30000"
-                app:icon="@android:drawable/ic_menu_save"
-                app:iconPadding="6dp" />
+            <ImageButton
+                android:id="@+id/btnAiEnhance"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="AI Enhance"
+                android:src="@android:drawable/ic_menu_view"
+                app:tint="@color/primary_warm" />
 
-            <!-- ✅ Share Note -->
-            <com.google.android.material.button.MaterialButton
+            <ImageButton
+                android:id="@+id/btnReadAloud"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="4dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/read_aloud"
+                android:src="@drawable/ic_volume_up"
+                app:tint="@color/text_secondary" />
+
+            <ImageButton
                 android:id="@+id/btnShareNote"
-                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                android:layout_width="0dp"
-                android:layout_height="56dp"
-                android:layout_weight="1"
-                android:text="Share Text"
-                android:textColor="#D30000"
-                app:cornerRadius="14dp"
-                app:strokeColor="#D30000"
-                app:strokeWidth="2dp"
-                app:icon="@android:drawable/ic_menu_send"
-                app:iconTint="#D30000"
-                app:iconPadding="6dp" />
-        </LinearLayout>
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="4dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Share"
+                android:src="@android:drawable/ic_menu_send"
+                app:tint="@color/text_secondary" />
 
-
-        <!-- Space -->
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="12dp" />
-
-
-        <!-- Row 2 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
-
-            <!-- ✅ Convert PDF -->
-            <com.google.android.material.button.MaterialButton
+            <ImageButton
                 android:id="@+id/btnConvertPdf"
-                android:layout_width="0dp"
-                android:layout_height="56dp"
-                android:layout_weight="1"
-                android:layout_marginEnd="8dp"
-                android:text="Convert PDF"
-                android:textColor="@android:color/white"
-                app:cornerRadius="14dp"
-                app:backgroundTint="#333333"
-                app:icon="@android:drawable/ic_menu_upload"
-                app:iconPadding="6dp" />
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="4dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="PDF"
+                android:src="@android:drawable/ic_menu_save"
+                app:tint="@color/text_secondary" />
 
-            <!-- ✅ Backup Firebase -->
-            <com.google.android.material.button.MaterialButton
+            <ImageButton
                 android:id="@+id/btnBackup"
-                android:layout_width="0dp"
-                android:layout_height="56dp"
-                android:layout_weight="1"
-                android:text="Backup"
-                android:textColor="@android:color/white"
-                app:cornerRadius="14dp"
-                app:backgroundTint="#1976D2"
-                app:icon="@android:drawable/ic_menu_share"
-                app:iconPadding="6dp" />
-            <!-- ✅ View Notes List Button -->
-
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="4dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Backup"
+                android:src="@android:drawable/ic_menu_upload"
+                app:tint="@color/text_secondary" />
 
         </LinearLayout>
-        <!-- ✅ View Notes List Button -->
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnViewNotes"
-            android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:text="📒 View All Notes"
-            android:textColor="@android:color/white"
-            app:cornerRadius="14dp"
-            app:backgroundTint="#009688"
-            app:icon="@android:drawable/ic_menu_agenda"
-            app:iconPadding="8dp"
-            android:layout_marginTop="12dp"/>
 
+    </com.google.android.material.bottomappbar.BottomAppBar>
 
-    </LinearLayout>
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/btnSaveNote"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@android:drawable/ic_menu_save"
+        app:backgroundTint="@color/primary_warm"
+        app:layout_anchor="@id/bottomAppBar"
+        app:tint="@android:color/white" />
 
+    <ProgressBar
+        android:id="@+id/aiProgressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:visibility="gone" />
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

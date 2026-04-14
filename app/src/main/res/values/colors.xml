@@ -1,17 +1,38 @@
 <resources>
-    <color name="purple_500">#2C3A47</color>
-    <color name="teal_200">#03DAC5</color>
+    <color name="primary_warm">#1E63E9</color>
+    <color name="primary_dark_warm">#1546B5</color>
+    <color name="secondary_warm">#0F766E</color>
+    <color name="accent_warm">#F59E0B</color>
 
-    <color name="background">#121212</color>
-    <color name="surface">#1E1E1E</color>
-    <color name="text_primary">#FFFFFF</color>
-    <color name="text_secondary">#B3B3B3</color>
-    <color name="primary_red">#D30000</color>
-    <color name="text_grey">#555555</color>
+    <color name="background_warm">#F4F7FB</color>
+    <color name="surface_warm">#FFFFFF</color>
+    <color name="text_primary_warm">#0F172A</color>
+    <color name="text_secondary_warm">#475569</color>
 
-    <color name="splash_bg_top">#2C3E50</color>
-    <color name="splash_bg_bottom">#1A252F</color>
+    <color name="purple_500">#1E63E9</color>
+    <color name="teal_200">#0F766E</color>
+
+    <color name="background">#F4F7FB</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="surface_variant">#EAF1FB</color>
+    <color name="surface_emphasis">#DCE7FA</color>
+    <color name="text_primary">#0F172A</color>
+    <color name="text_secondary">#475569</color>
+    <color name="primary_red">#D14343</color>
+    <color name="text_grey">#94A3B8</color>
+    <color name="stroke_subtle">#D9E2F0</color>
+    <color name="success_green">#0F9D58</color>
+    <color name="toolbar_icon">#1E293B</color>
+    <color name="bottom_bar">#FCFDFF</color>
+    <color name="chip_bg">#1FFFFFFF</color>
+    <color name="hero_start">#0E234A</color>
+    <color name="hero_center">#1546B5</color>
+    <color name="hero_end">#1E63E9</color>
+    <color name="hero_text_secondary">#D6E4FF</color>
+
+    <color name="splash_bg_top">#08152F</color>
+    <color name="splash_bg_bottom">#1A4DB5</color>
     <color name="splash_text_primary">#FFFFFF</color>
-    <color name="splash_text_secondary">#B0B8C1</color>
-    <color name="splash_accent">#3498DB</color>
+    <color name="splash_text_secondary">#D6E4FF</color>
+    <color name="splash_accent">#7DD3FC</color>
 </resources>

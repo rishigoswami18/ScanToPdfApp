@@ -32,6 +32,12 @@ android {
         }
     }
 
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_11
@@ -39,6 +45,9 @@ android {
     }
     kotlinOptions {
         jvmTarget = "11"
+    }
+    buildFeatures {
+        viewBinding = true
     }
 }
 
@@ -54,6 +63,10 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore-ktx")
     implementation(libs.localagents.rag)
     implementation(libs.firebase.ai)
+
+    implementation(libs.androidx.lifecycle.viewmodel.ktx)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation("androidx.fragment:fragment-ktx:1.8.5")
 
 
     testImplementation(libs.junit)
@@ -76,16 +89,8 @@ dependencies {
 
 
 
-    // Material 3
-    implementation("com.google.android.material:material:1.11.0")
-
-
-
-    // PDF
-    implementation(platform("com.google.firebase:firebase-bom:32.7.0"))
-
     implementation("com.google.firebase:firebase-auth-ktx")
-    implementation("com.google.mlkit:text-recognition:16.0.0")
+    implementation("com.google.mlkit:text-recognition:16.0.1")
 
     implementation("androidx.recyclerview:recyclerview:1.3.2")
 
@@ -94,14 +99,15 @@ dependencies {
 
     implementation("com.google.android.gms:play-services-auth:21.0.0")
 
-    implementation("com.google.firebase:firebase-storage-ktx")
-
     implementation("com.google.firebase:firebase-functions-ktx:21.0.0")
 
     implementation("com.itextpdf:itextg:5.5.10")
+    
+    // Networking
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
 
-    implementation("com.google.firebase:firebase-ai")
     implementation("com.github.bumptech.glide:glide:4.16.0")
 
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
@@ -136,5 +142,4 @@ dependencies {
 configurations.configureEach {
     exclude(group = "org.bouncycastle")
 }
-
 

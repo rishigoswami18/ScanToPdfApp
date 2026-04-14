@@ -1,0 +1,54 @@
+<resources>
+    <style name="Widget.ScanToPdf.SurfaceCard" parent="">
+        <item name="cardBackgroundColor">@color/surface</item>
+        <item name="cardCornerRadius">28dp</item>
+        <item name="cardElevation">0dp</item>
+        <item name="strokeColor">@color/stroke_subtle</item>
+        <item name="strokeWidth">1dp</item>
+    </style>
+
+    <style name="Widget.ScanToPdf.PrimaryButton" parent="">
+        <item name="android:minHeight">56dp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="backgroundTint">@color/primary_warm</item>
+        <item name="cornerRadius">18dp</item>
+        <item name="android:textColor">@color/surface</item>
+        <item name="iconTint">@color/surface</item>
+    </style>
+
+    <style name="Widget.ScanToPdf.SecondaryButton" parent="">
+        <item name="android:minHeight">56dp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="backgroundTint">@android:color/transparent</item>
+        <item name="cornerRadius">18dp</item>
+        <item name="strokeColor">@color/stroke_subtle</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="iconTint">@color/primary_warm</item>
+    </style>
+
+    <style name="Widget.ScanToPdf.HeroSecondaryButton" parent="">
+        <item name="android:minHeight">56dp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="backgroundTint">@android:color/transparent</item>
+        <item name="cornerRadius">18dp</item>
+        <item name="strokeColor">#40FFFFFF</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="android:textColor">@color/surface</item>
+        <item name="iconTint">@color/surface</item>
+    </style>
+
+    <style name="Widget.ScanToPdf.TextInput" parent="Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+        <item name="boxBackgroundColor">@color/surface</item>
+        <item name="boxStrokeColor">@color/stroke_subtle</item>
+        <item name="boxStrokeWidth">1dp</item>
+        <item name="boxStrokeWidthFocused">2dp</item>
+        <item name="boxCornerRadiusTopStart">18dp</item>
+        <item name="boxCornerRadiusTopEnd">18dp</item>
+        <item name="boxCornerRadiusBottomStart">18dp</item>
+        <item name="boxCornerRadiusBottomEnd">18dp</item>
+        <item name="hintTextColor">@color/text_secondary</item>
+        <item name="startIconTint">@color/primary_warm</item>
+        <item name="endIconTint">@color/text_secondary</item>
+    </style>
+</resources>
