@@ -141,7 +141,7 @@ class MergePdfActivity : VoiceEnabledActivity() {
                     }
                 }
 
-                val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                val dir = com.hrishipvt.scantopdf.utils.PdfUtils.getIsolatedPdfDirectory(this@MergePdfActivity)
                 val file = File(dir, "Merged_${System.currentTimeMillis()}.pdf")
 
                 mergedDocument.save(file)
@@ -149,12 +149,12 @@ class MergePdfActivity : VoiceEnabledActivity() {
                 withContext(Dispatchers.Main) {
                     binding.progressBar.visibility = View.GONE
                     binding.btnMergePdf.isEnabled = true
-                    Toast.makeText(this@MergePdfActivity, "PDFs merged successfully! Check Downloads.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this@MergePdfActivity, "PDFs merged successfully! Check SmartScan Workspace.", Toast.LENGTH_LONG).show()
                     selectedUris.clear()
                     updateSelectionStatus()
                     if (shouldSpeakMergeResult) {
                         shouldSpeakMergeResult = false
-                        speak("Your PDFs were merged successfully. Check the downloads folder.")
+                        speak("Your PDFs were merged successfully. Check your Workspace.")
                     }
                 }
             } catch (error: Exception) {

@@ -4,35 +4,38 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#121212">
+    android:background="@color/background">
 
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#121212"
+        android:background="@color/surface"
         app:elevation="0dp">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:navigationIcon="@android:drawable/ic_menu_revert"
-            app:navigationIconTint="#FFFFFF"
+            app:navigationIcon="@drawable/ic_back"
+            app:navigationIconTint="@color/text_primary"
             app:title="Edit &amp; Preview"
-            app:titleTextColor="#FFFFFF" />
+            app:titleTextColor="@color/text_primary" />
 
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:background="@color/background"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <FrameLayout
             android:id="@+id/previewContainer"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_margin="16dp"
+            android:layout_margin="12dp"
+            android:background="@color/surface_variant"
+            android:elevation="4dp"
             app:layout_constraintBottom_toTopOf="@+id/editCard"
             app:layout_constraintTop_toTopOf="parent">
 
@@ -59,10 +62,12 @@
             android:id="@+id/editCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:cardBackgroundColor="#1E1E1E"
+            app:cardBackgroundColor="@color/surface"
             app:cardCornerRadius="24dp"
-            app:cardElevation="8dp"
-            android:layout_marginBottom="-24dp"
+            app:cardElevation="12dp"
+            app:strokeWidth="1dp"
+            app:strokeColor="@color/stroke_subtle"
+            android:layout_marginBottom="-20dp"
             app:layout_constraintBottom_toBottomOf="parent">
 
             <LinearLayout
@@ -70,7 +75,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:padding="20dp"
-                android:paddingBottom="44dp">
+                android:paddingBottom="40dp">
 
                 <androidx.recyclerview.widget.RecyclerView
                     android:id="@+id/rvEditTools"
@@ -85,7 +90,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="1dp"
                     android:layout_marginVertical="16dp"
-                    android:background="#333333" />
+                    android:background="@color/stroke_subtle" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -100,9 +105,10 @@
                         android:layout_weight="1"
                         android:text="AI Summary"
                         android:textAllCaps="false"
-                        android:textColor="#FFFFFF"
-                        app:strokeColor="#FFFFFF"
-                        app:cornerRadius="14dp" />
+                        android:textColor="@color/primary_warm"
+                        app:strokeColor="@color/primary_warm"
+                        app:cornerRadius="14dp"
+                        app:icon="@drawable/ic_ai_summary" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnSave"
@@ -112,8 +118,9 @@
                         android:layout_weight="1"
                         android:text="Save PDF"
                         android:textAllCaps="false"
-                        app:backgroundTint="#2C3A47"
-                        app:cornerRadius="14dp" />
+                        app:backgroundTint="@color/primary_warm"
+                        app:cornerRadius="14dp"
+                        app:icon="@drawable/ic_image_to_pdf" />
                 </LinearLayout>
 
             </LinearLayout>
@@ -121,17 +128,17 @@
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-    <!-- Voice Control FAB -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fabVoiceCommand"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_marginEnd="16dp"
-        android:layout_marginBottom="216dp"
+        android:layout_marginBottom="220dp"
         android:src="@drawable/ic_mic"
         app:backgroundTint="@color/primary_warm"
         app:tint="@color/surface"
-        android:contentDescription="@string/voice_command" />
+        android:contentDescription="@string/voice_command"
+        android:visibility="gone" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

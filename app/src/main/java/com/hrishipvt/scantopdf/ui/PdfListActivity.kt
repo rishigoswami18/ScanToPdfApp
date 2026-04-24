@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.os.Environment
 import android.view.View
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.core.content.FileProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.firebase.auth.FirebaseAuth
@@ -18,7 +19,7 @@ import java.util.Locale
 class PdfListActivity : VoiceEnabledActivity() {
 
     private lateinit var binding: ActivityPdfListBinding
-    private var pdfFiles: List<File> = emptyList()
+    private var pdfFiles: MutableList<File> = mutableListOf()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -36,29 +37,29 @@ class PdfListActivity : VoiceEnabledActivity() {
     }
 
     override fun handleScreenVoiceCommand(rawCommand: String, normalizedCommand: String): Boolean {
-        val openQuery = textAfterCommand(rawCommand, "open ", "show ")
-        val shareQuery = textAfterCommand(rawCommand, "share ")
-        val analyzeQuery = textAfterCommand(rawCommand, "analyze ", "summarize ")
-        val uploadQuery = textAfterCommand(rawCommand, "upload ")
+        val openQuery = textAfterCommand(rawCommand, "open ", "show ", "kholo ", "dikhao ")
+        val shareQuery = textAfterCommand(rawCommand, "share ", "bhejo ")
+        val analyzeQuery = textAfterCommand(rawCommand, "analyze ", "summarize ", "pucho ")
+        val uploadQuery = textAfterCommand(rawCommand, "upload ", "sync ")
 
         return when {
-            normalizedCommand.contains("refresh") || normalizedCommand.contains("reload") -> {
+            normalizedCommand.contains("refresh") || normalizedCommand.contains("reload") || normalizedCommand.contains("saaf karo") -> {
                 loadPdfFiles()
                 speak(documentCountSummary())
                 true
             }
 
-            normalizedCommand.contains("status") || normalizedCommand.contains("how many") || normalizedCommand.contains("file count") -> {
+            normalizedCommand.contains("status") || normalizedCommand.contains("how many") || normalizedCommand.contains("kitne pdf") -> {
                 speak(documentCountSummary())
                 true
             }
 
-            normalizedCommand.contains("open latest") || normalizedCommand.contains("open newest") -> {
+            normalizedCommand.contains("open latest") || normalizedCommand.contains("latest kholo") -> {
                 latestPdf()?.let(::openPdf) ?: speak("There are no PDFs to open.")
                 true
             }
 
-            normalizedCommand.contains("share latest") || normalizedCommand.contains("share newest") -> {
+            normalizedCommand.contains("share latest") || normalizedCommand.contains("latest bhejo") -> {
                 latestPdf()?.let(::sharePdf) ?: speak("There are no PDFs to share.")
                 true
             }
@@ -67,6 +68,7 @@ class PdfListActivity : VoiceEnabledActivity() {
                 latestPdf()?.let(::openPdfInAi) ?: speak("There are no PDFs to analyze.")
                 true
             }
+
 
             normalizedCommand.contains("upload latest") || normalizedCommand.contains("sync latest") -> {
                 latestPdf()?.let(::uploadPdf) ?: speak("There are no PDFs to upload.")
@@ -134,20 +136,15 @@ class PdfListActivity : VoiceEnabledActivity() {
 
     private fun loadPdfFiles() {
         val pdfByPath = linkedMapOf<String, File>()
-        val locations = listOf(
-            getExternalFilesDir(null),
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-        )
-
-        locations.forEach { directory ->
-            directory?.listFiles { file ->
-                file.extension.equals("pdf", true)
-            }?.forEach { file ->
-                pdfByPath[file.absolutePath] = file
-            }
+        val isolatedDir = com.hrishipvt.scantopdf.utils.PdfUtils.getIsolatedPdfDirectory(this)
+        
+        isolatedDir.listFiles { file ->
+            file.extension.equals("pdf", true)
+        }?.forEach { file ->
+            pdfByPath[file.absolutePath] = file
         }
 
-        pdfFiles = pdfByPath.values.sortedByDescending { it.lastModified() }
+        pdfFiles = pdfByPath.values.sortedByDescending { it.lastModified() }.toMutableList()
 
         if (pdfFiles.isEmpty()) {
             binding.emptyState.visibility = View.VISIBLE
@@ -158,11 +155,30 @@ class PdfListActivity : VoiceEnabledActivity() {
 
             binding.recyclerPdf.apply {
                 layoutManager = LinearLayoutManager(this@PdfListActivity)
-                adapter = PdfAdapter(pdfFiles) { selectedFile ->
+                adapter = PdfAdapter(pdfFiles, { selectedFile ->
                     sharePdf(selectedFile)
-                }
+                }, { fileToDelete ->
+                    deletePdf(fileToDelete)
+                })
             }
         }
+    }
+
+    private fun deletePdf(pdfFile: File) {
+        AlertDialog.Builder(this)
+            .setTitle("Delete PDF")
+            .setMessage("Are you sure you want to delete ${pdfFile.name}?")
+            .setPositiveButton("Delete") { _, _ ->
+                if (pdfFile.delete()) {
+                    Toast.makeText(this, "File deleted", Toast.LENGTH_SHORT).show()
+                    loadPdfFiles()
+                    speak("File deleted.")
+                } else {
+                    Toast.makeText(this, "Failed to delete file", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun sharePdf(pdfFile: File) {

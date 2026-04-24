@@ -137,13 +137,8 @@ class LoginActivity : VoiceEnabledActivity() {
         }
 
         auth.signInWithEmailAndPassword(email, password)
-            .addOnSuccessListener { task ->
-                if (task.user?.isEmailVerified == true) {
-                    goToMain()
-                } else {
-                    Toast.makeText(this, "Please verify your email first", Toast.LENGTH_SHORT).show()
-                    speak("Please verify your email before signing in.")
-                }
+            .addOnSuccessListener {
+                goToMain()
             }
             .addOnFailureListener {
                 Toast.makeText(this, it.message, Toast.LENGTH_LONG).show()

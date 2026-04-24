@@ -18,6 +18,7 @@ import com.hrishipvt.scantopdf.adapter.EditToolsAdapter
 import com.hrishipvt.scantopdf.adapter.PreviewPagerAdapter
 import com.hrishipvt.scantopdf.ai.AiOcrUtils
 import com.hrishipvt.scantopdf.databinding.ActivityPreviewBinding
+import com.hrishipvt.scantopdf.utils.FileUtils
 import com.hrishipvt.scantopdf.utils.ImageUtils
 import com.hrishipvt.scantopdf.utils.ScanSession
 import com.hrishipvt.scantopdf.view.EditTool
@@ -34,6 +35,7 @@ class PreviewActivity : VoiceEnabledActivity() {
     private lateinit var binding: ActivityPreviewBinding
     private lateinit var adapter: PreviewPagerAdapter
     private val extractedText = StringBuilder()
+    private var customTitle: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,7 +54,16 @@ class PreviewActivity : VoiceEnabledActivity() {
     }
 
     override fun handleScreenVoiceCommand(rawCommand: String, normalizedCommand: String): Boolean {
+        val titleText = textAfterCommand(rawCommand, "title ", "set title ", "give title ", "name it ", "change title to ", "set title to ")
+
         return when {
+            titleText.isNotEmpty() -> {
+                customTitle = titleText
+                binding.toolbar.title = titleText
+                speak("Setting document title to $titleText")
+                true
+            }
+
             normalizedCommand.contains("crop") -> {
                 speak("Cropping page.")
                 toggleCrop()
@@ -265,7 +276,6 @@ class PreviewActivity : VoiceEnabledActivity() {
         contentResolver.openInputStream(uri)?.use { inputStream ->
             XWPFDocument(inputStream).use { doc ->
                 val textBuilder = StringBuilder()
-
                 doc.paragraphs.forEach { paragraph ->
                     textBuilder.append(paragraph.text).append("\n")
                 }
@@ -273,31 +283,9 @@ class PreviewActivity : VoiceEnabledActivity() {
                 val fullText = textBuilder.toString()
                 if (fullText.isEmpty()) return
 
-                val pageWidth = 595
-                val pageHeight = 842
-                val bitmap = Bitmap.createBitmap(pageWidth, pageHeight, Bitmap.Config.ARGB_8888)
-                val canvas = android.graphics.Canvas(bitmap)
-                canvas.drawColor(android.graphics.Color.WHITE)
-
-                val paint = android.graphics.Paint().apply {
-                    color = android.graphics.Color.BLACK
-                    textSize = 12f
-                    isAntiAlias = true
-                }
-
-                val textPaint = android.text.TextPaint(paint)
-                val staticLayout = android.text.StaticLayout.Builder
-                    .obtain(fullText, 0, fullText.length, textPaint, pageWidth - 80)
-                    .setAlignment(android.text.Layout.Alignment.ALIGN_NORMAL)
-                    .setLineSpacing(0f, 1.2f)
-                    .build()
-
-                canvas.save()
-                canvas.translate(40f, 40f)
-                staticLayout.draw(canvas)
-                canvas.restore()
-
-                ScanSession.bitmaps.add(bitmap)
+                val fileName = FileUtils.getFileName(contentResolver, uri) ?: "Document"
+                val bitmaps = com.hrishipvt.scantopdf.utils.NotePdfUtils.renderTextToBitmaps(fileName, fullText)
+                ScanSession.bitmaps.addAll(bitmaps)
             }
         }
     }
@@ -371,12 +359,12 @@ class PreviewActivity : VoiceEnabledActivity() {
                     page.canvas.drawBitmap(bitmap, 0f, 0f, null)
                     pdfDocument.finishPage(page)
                 }
-                val saved = savePdfToDownloads(pdfDocument)
+                val saved = savePdfToIsolatedStorage(pdfDocument)
                 pdfDocument.close()
                 withContext(Dispatchers.Main) {
                     binding.progressBar.visibility = View.GONE
                     if (saved) {
-                        Toast.makeText(this@PreviewActivity, "PDF Saved to Downloads!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@PreviewActivity, "PDF Saved to SmartScan Workspace!", Toast.LENGTH_SHORT).show()
                         ScanSession.clear()
                         finish()
                     } else {
@@ -392,30 +380,20 @@ class PreviewActivity : VoiceEnabledActivity() {
         }
     }
 
-    private fun savePdfToDownloads(pdfDocument: android.graphics.pdf.PdfDocument): Boolean {
-        val fileName = "Scan_${System.currentTimeMillis()}.pdf"
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val values = ContentValues().apply {
-                put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-                put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
-                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
-            }
-            val savedUri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values) ?: return false
-            contentResolver.openOutputStream(savedUri)?.use {
-                pdfDocument.writeTo(it)
-                true
-            } ?: false
-        } else {
-            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            if (!downloadsDir.exists() && !downloadsDir.mkdirs()) {
-                return false
-            }
-
-            val outputFile = File(downloadsDir, fileName)
+    private fun savePdfToIsolatedStorage(pdfDocument: android.graphics.pdf.PdfDocument): Boolean {
+        val safeTitle = customTitle?.replace(Regex("[^a-zA-Z0-9]"), "_") ?: "Scan"
+        val fileName = "${safeTitle}_${System.currentTimeMillis()}.pdf"
+        
+        return try {
+            val isolatedDir = com.hrishipvt.scantopdf.utils.PdfUtils.getIsolatedPdfDirectory(this)
+            val outputFile = File(isolatedDir, fileName)
             outputFile.outputStream().use {
                 pdfDocument.writeTo(it)
             }
             true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
         }
     }
 }

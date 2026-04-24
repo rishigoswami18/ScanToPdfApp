@@ -2,6 +2,7 @@ package com.hrishipvt.scantopdf.ui
 
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.text.InputType
@@ -21,6 +22,7 @@ import androidx.recyclerview.widget.GridLayoutManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.switchmaterial.SwitchMaterial
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import com.hrishipvt.scantopdf.R
 import com.hrishipvt.scantopdf.adapter.PdfToolsAdapter
 import com.hrishipvt.scantopdf.ai.GeminiApi
@@ -44,6 +46,7 @@ class MainActivity : VoiceEnabledActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var auth: FirebaseAuth
     private var isAutoUploadEnabled = true
+    private var isAdmin = false
 
     private val noteViewModel: NoteViewModel by viewModels()
 
@@ -88,7 +91,10 @@ class MainActivity : VoiceEnabledActivity() {
         auth = FirebaseAuth.getInstance()
         loadStoredSettings()
         setupToolbar()
-        setupVoiceAssistant()
+        // Delay voice assistant setup to prevent blocking the main thread and UI lag
+        binding.root.post {
+            setupVoiceAssistant()
+        }
         setupDashboardHeader()
         setupQuickActions()
         setupPdfTools()
@@ -96,8 +102,14 @@ class MainActivity : VoiceEnabledActivity() {
         setupBanner()
         setupPresentationAssist()
         observeNotesCount()
+        claimOrphanedData()
         refreshPdfCount()
         handleNavigationExtras()
+        checkAdminRole()
+
+        if (!isModeChosen()) {
+            showModeChooserDialog()
+        }
     }
 
     private fun applyStoredUiPreferences() {
@@ -122,6 +134,52 @@ class MainActivity : VoiceEnabledActivity() {
         }
     }
 
+    private fun claimOrphanedData() {
+        val currentUser = auth.currentUser ?: return
+        val uid = currentUser.uid
+
+        // 1. Claim Orphaned Room Notes
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                com.hrishipvt.scantopdf.data.NoteDatabase.getDatabase(this@MainActivity)
+                    .noteDao().claimAllOrphanedNotes(uid)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+
+        // 2. Claim Orphaned PDF Files
+        lifecycleScope.launch(Dispatchers.IO) {
+            val isolatedDir = com.hrishipvt.scantopdf.utils.PdfUtils.getIsolatedPdfDirectory(this@MainActivity)
+            val locations = listOf(
+                getExternalFilesDir(null), // old private root
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            )
+
+            locations.forEach { directory ->
+                directory?.listFiles { file ->
+                    file.extension.equals("pdf", ignoreCase = true)
+                }?.forEach { file ->
+                    // Move file to new isolated directory
+                    if (file.absolutePath != isolatedDir.absolutePath) {
+                        try {
+                            val newFile = java.io.File(isolatedDir, file.name)
+                            if (!newFile.exists()) {
+                                file.copyTo(newFile)
+                                file.delete()
+                            }
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
+                }
+            }
+            
+            // Refresh counts after migration finishes
+            refreshPdfCount()
+        }
+    }
+
     private fun observeNotesCount() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -135,17 +193,12 @@ class MainActivity : VoiceEnabledActivity() {
     private fun refreshPdfCount() {
         lifecycleScope.launch(Dispatchers.IO) {
             val knownPdfPaths = linkedSetOf<String>()
-            val locations = listOf(
-                getExternalFilesDir(null),
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            )
+            val isolatedDir = com.hrishipvt.scantopdf.utils.PdfUtils.getIsolatedPdfDirectory(this@MainActivity)
 
-            locations.forEach { directory ->
-                directory?.listFiles { file ->
-                    file.extension.equals("pdf", ignoreCase = true)
-                }?.forEach { file ->
-                    knownPdfPaths.add(file.absolutePath)
-                }
+            isolatedDir.listFiles { file ->
+                file.extension.equals("pdf", ignoreCase = true)
+            }?.forEach { file ->
+                knownPdfPaths.add(file.absolutePath)
             }
 
             withContext(Dispatchers.Main) {
@@ -205,7 +258,8 @@ class MainActivity : VoiceEnabledActivity() {
 
     private fun setupToolbar() {
         setSupportActionBar(binding.toolbar)
-        supportActionBar?.setDisplayShowTitleEnabled(false)
+        supportActionBar?.setDisplayShowTitleEnabled(true)
+        supportActionBar?.setTitle(R.string.app_name)
     }
 
     private fun setupBanner() {
@@ -284,7 +338,17 @@ class MainActivity : VoiceEnabledActivity() {
             "AI Assistant" -> startActivity(Intent(this, AiChatActivity::class.java))
             "Merge PDF" -> startActivity(Intent(this, MergePdfActivity::class.java))
             "Image to PDF" -> showImageSourceDialog()
-            "Doc to PDF" -> showDocSourceDialog()
+            "Doc to PDF" -> {
+                speak("Opening document selector.")
+                pickDocument.launch(
+                    arrayOf(
+                        "application/msword",
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        "text/plain",
+                        "application/pdf"
+                    )
+                )
+            }
             "Sign PDF" -> openSignatureTool()
             "Encrypt PDF" -> openPasswordTool()
             "Take Notes" -> startActivity(Intent(this, NotesListActivity::class.java))
@@ -368,11 +432,18 @@ class MainActivity : VoiceEnabledActivity() {
         val switchAuto: SwitchMaterial = dialogView.findViewById(R.id.switchAutoUpload)
         val switchDark: SwitchMaterial = dialogView.findViewById(R.id.switchDarkMode)
         val switchAutonomousVoice: SwitchMaterial = dialogView.findViewById(R.id.switchAutonomousVoice)
+        val switchVoiceMode: SwitchMaterial = dialogView.findViewById(R.id.switchVoiceMode)
 
         val prefs = getSharedPreferences(APP_CONFIG_PREFS, MODE_PRIVATE)
         switchAuto.isChecked = prefs.getBoolean("AUTO_UPLOAD", true)
         switchDark.isChecked = prefs.getBoolean("DARK_MODE", false)
+        switchVoiceMode.isChecked = isVoiceMode()
         switchAutonomousVoice.isChecked = isAutonomousVoiceEnabled()
+
+        switchAutonomousVoice.isEnabled = switchVoiceMode.isChecked
+        switchVoiceMode.setOnCheckedChangeListener { _, isChecked ->
+            switchAutonomousVoice.isEnabled = isChecked
+        }
 
         MaterialAlertDialogBuilder(this)
             .setTitle("App Settings")
@@ -385,6 +456,11 @@ class MainActivity : VoiceEnabledActivity() {
                     .putBoolean("AUTO_UPLOAD", isAutoUploadEnabled)
                     .putBoolean("DARK_MODE", isDark)
                     .apply()
+
+                setAppMode(if (switchVoiceMode.isChecked) VoiceEnabledActivity.MODE_VOICE else VoiceEnabledActivity.MODE_MANUAL)
+                if (switchVoiceMode.isChecked) {
+                    setupVoiceAssistant()
+                }
 
                 setAutonomousVoiceEnabled(switchAutonomousVoice.isChecked)
                 AppCompatDelegate.setDefaultNightMode(
@@ -433,21 +509,22 @@ class MainActivity : VoiceEnabledActivity() {
     }
 
     private fun showAboutAppDialog() {
-        val message = """
-            ScanToPdf is a modern document workspace built for scanning, organizing, protecting, and understanding files from one place.
-
-            Key capabilities:
-            - Scan documents from camera or gallery
-            - Merge, protect, and sign PDF files
-            - Create notes and export them as PDF
-            - Use AI to summarize and discuss document content
-            - Run hands-free with the autonomous voice agent
-        """.trimIndent()
+        val aboutText = """
+            SmartScan is a modern document workspace built for scanning, organizing, protecting, and understanding files from one place.
+            
+            FEATURES
+            • Smart Scanner: Auto-crop, enhance, scan to high quality PDF
+            • AI Assistant: Summarize, ask questions, explain documents
+            • Autonomous Voice Control: Control the app hands-free
+            • Core PDF Tools: Merge, Extract, Lock/Unlock, Watermark
+            
+            Built with Android, Kotlin, Material 3, Firebase, and Gemini AI.
+            """.trimIndent()
 
         MaterialAlertDialogBuilder(this)
-            .setTitle("About ScanToPdf")
-            .setMessage(message)
-            .setPositiveButton("Close") { dialog, _ -> dialog.dismiss() }
+            .setTitle("About SmartScan")
+            .setMessage(aboutText)
+            .setPositiveButton(R.string.close_label, null)
             .show()
     }
 
@@ -489,46 +566,48 @@ class MainActivity : VoiceEnabledActivity() {
 
     override fun handleScreenVoiceCommand(rawCommand: String, normalizedCommand: String): Boolean {
         return when {
-            normalizedCommand.contains("presentation") || normalizedCommand.contains("class demo") || normalizedCommand.contains("demo guide") -> {
+             containsAny(normalizedCommand, "presentation", "demo", "pitch", "vichaar") -> {
                 showPresentationGuideDialog()
                 true
             }
 
-            normalizedCommand.contains("pitch") || normalizedCommand.contains("practice talk") -> {
-                showPresentationPitchDialog()
-                true
-            }
-
-            normalizedCommand.contains("image to pdf") || normalizedCommand.contains("gallery") -> {
+            containsAny(normalizedCommand, "image to pdf", "gallery", "photo se pdf", "gallery kholo") -> {
                 speak("Opening image import.")
                 showImageSourceDialog()
                 true
             }
 
-            normalizedCommand.contains("sign") -> {
+            containsAny(normalizedCommand, "sign", "signature", "hastakshar") -> {
                 speak("Opening PDF signature tool.")
                 openSignatureTool()
                 true
             }
 
-            normalizedCommand.contains("encrypt") || normalizedCommand.contains("protect") || normalizedCommand.contains("lock") -> {
+            containsAny(normalizedCommand, "encrypt", "protect", "lock", "password lagao") -> {
                 speak("Opening PDF protection.")
                 openPasswordTool()
                 true
             }
 
-            normalizedCommand.contains("doc") || normalizedCommand.contains("word") -> {
-                speak("Opening document import.")
-                showDocSourceDialog()
+            containsAny(normalizedCommand, "doc", "word", "convert", "badlo") -> {
+                speak("Opening document selector.")
+                pickDocument.launch(
+                    arrayOf(
+                        "application/msword",
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        "text/plain",
+                        "application/pdf"
+                    )
+                )
                 true
             }
 
-            normalizedCommand.contains("status") || normalizedCommand.contains("workspace summary") -> {
+            containsAny(normalizedCommand, "status", "workspace", "kitne pdf hain") -> {
                 speak("You currently have ${binding.tvPdfCount.text} PDFs and ${binding.tvNotesCount.text} notes in your workspace.")
                 true
             }
 
-            normalizedCommand.contains("account") || normalizedCommand.contains("profile") -> {
+            containsAny(normalizedCommand, "account", "profile", "user", "kaun hoon") -> {
                 if (auth.currentUser != null) {
                     speak("You are signed in as ${auth.currentUser?.email}.")
                 } else {
@@ -541,6 +620,7 @@ class MainActivity : VoiceEnabledActivity() {
             else -> false
         }
     }
+
 
     override fun onUnknownVoiceCommand(rawCommand: String, normalizedCommand: String) {
         speak("Let me think about that.")
@@ -562,15 +642,53 @@ class MainActivity : VoiceEnabledActivity() {
         return true
     }
 
+    private fun checkAdminRole() {
+        val email = auth.currentUser?.email
+        if (email == null) {
+            android.util.Log.d("AdminCheck", "No user email found")
+            return
+        }
+        android.util.Log.d("AdminCheck", "Checking admin for: $email")
+        FirebaseFirestore.getInstance()
+            .collection("admins")
+            .document(email)
+            .get()
+            .addOnSuccessListener { doc ->
+                android.util.Log.d("AdminCheck", "Doc exists: ${doc.exists()}, data: ${doc.data}")
+                isAdmin = doc.exists()
+                invalidateOptionsMenu()
+            }
+            .addOnFailureListener { e ->
+                android.util.Log.e("AdminCheck", "Failed to check admin: ${e.message}")
+                Toast.makeText(this, "Admin check failed: ${e.message}", Toast.LENGTH_LONG).show()
+                isAdmin = false
+            }
+    }
+
     override fun onPrepareOptionsMenu(menu: Menu?): Boolean {
         val isLoggedIn = auth.currentUser != null
         menu?.findItem(R.id.action_login)?.isVisible = !isLoggedIn
         menu?.findItem(R.id.action_logout)?.isVisible = isLoggedIn
+        menu?.findItem(R.id.action_admin_panel)?.isVisible = isAdmin
         return super.onPrepareOptionsMenu(menu)
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
+            R.id.action_notifications -> {
+                startActivity(Intent(this, NotificationsActivity::class.java))
+                true
+            }
+
+            R.id.action_admin_panel -> {
+                if (isAdmin) {
+                    startActivity(Intent(this, AdminPanelActivity::class.java))
+                } else {
+                    Toast.makeText(this, "Admin access required", Toast.LENGTH_SHORT).show()
+                }
+                true
+            }
+
             R.id.action_settings -> {
                 showSettingsDialog()
                 true
@@ -611,9 +729,11 @@ class MainActivity : VoiceEnabledActivity() {
 
     override fun onResume() {
         super.onResume()
+        com.hrishipvt.scantopdf.utils.AdManager.showAdIfPossible(this)
         setupDashboardHeader()
         setupPdfTools()
         refreshPdfCount()
         invalidateOptionsMenu()
+        checkAdminRole()
     }
 }

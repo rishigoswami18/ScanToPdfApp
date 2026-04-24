@@ -15,9 +15,12 @@ interface NoteDao {
     @Delete
     suspend fun delete(note: Note)
 
-    @Query("SELECT * FROM notes ORDER BY time DESC")
-    fun getAllNotes(): Flow<List<Note>>
+    @Query("SELECT * FROM notes WHERE userId = :userId ORDER BY time DESC")
+    fun getAllNotes(userId: String): Flow<List<Note>>
 
-    @Query("SELECT * FROM notes WHERE title LIKE '%' || :query || '%' OR content LIKE '%' || :query || '%' ORDER BY time DESC")
-    fun searchNotes(query: String): Flow<List<Note>>
+    @Query("SELECT * FROM notes WHERE userId = :userId AND (title LIKE '%' || :query || '%' OR content LIKE '%' || :query || '%') ORDER BY time DESC")
+    fun searchNotes(query: String, userId: String): Flow<List<Note>>
+
+    @Query("UPDATE notes SET userId = :userId WHERE userId = ''")
+    suspend fun claimAllOrphanedNotes(userId: String)
 }

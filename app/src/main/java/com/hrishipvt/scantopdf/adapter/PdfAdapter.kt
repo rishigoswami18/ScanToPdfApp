@@ -16,8 +16,9 @@ import com.hrishipvt.scantopdf.utils.FirebaseUploadUtils
 import java.io.File
 
 class PdfAdapter(
-    private val pdfList: List<File>,
-    private val onShareClick: (File) -> Unit
+    private var pdfList: MutableList<File>,
+    private val onShareClick: (File) -> Unit,
+    private val onDeleteClick: (File) -> Unit
 ) : RecyclerView.Adapter<PdfAdapter.PdfViewHolder>() {
 
     class PdfViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -26,6 +27,7 @@ class PdfAdapter(
         val btnUpload: ImageButton = itemView.findViewById(R.id.btnUpload)
         val btnShare: ImageButton = itemView.findViewById(R.id.btnShare)
         val btnAiAction: ImageButton = itemView.findViewById(R.id.btnAiAction)
+        val btnDelete: ImageButton = itemView.findViewById(R.id.btnDelete)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PdfViewHolder {
@@ -72,6 +74,10 @@ class PdfAdapter(
                     Toast.makeText(context, "Error: $msg", Toast.LENGTH_SHORT).show()
                 }
             }
+        }
+
+        holder.btnDelete.setOnClickListener {
+            onDeleteClick(file)
         }
 
         holder.itemView.setOnClickListener {

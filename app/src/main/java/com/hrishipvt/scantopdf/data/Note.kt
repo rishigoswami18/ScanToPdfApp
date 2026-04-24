@@ -9,5 +9,6 @@ data class Note(
     val id: Int = 0,
     val title: String,
     val content: String,
-    val time: Long = System.currentTimeMillis()
+    val time: Long = System.currentTimeMillis(),
+    val userId: String = "" // Default empty for older notes (pre-migration)
 )

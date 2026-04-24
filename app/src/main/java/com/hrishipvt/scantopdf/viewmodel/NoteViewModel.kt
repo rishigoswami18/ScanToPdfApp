@@ -20,10 +20,11 @@ class NoteViewModel(application: Application) : AndroidViewModel(application) {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val notes = _searchQuery.flatMapLatest { query ->
+        val userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "local"
         if (query.isEmpty()) {
-            noteDao.getAllNotes()
+            noteDao.getAllNotes(userId)
         } else {
-            noteDao.searchNotes(query)
+            noteDao.searchNotes(query, userId)
         }
     }
 

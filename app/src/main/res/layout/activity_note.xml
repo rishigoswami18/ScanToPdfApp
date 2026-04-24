@@ -15,7 +15,8 @@
             android:id="@+id/noteToolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:navigationIcon="@android:drawable/ic_menu_revert"
+            app:navigationIcon="@drawable/ic_back"
+            app:navigationIconTint="@color/text_primary"
             app:title="Edit Note"
             app:titleTextColor="@color/text_primary" />
 
@@ -98,7 +99,7 @@
                 android:layout_height="48dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="AI Enhance"
-                android:src="@android:drawable/ic_menu_view"
+                android:src="@drawable/ic_ai_summary"
                 app:tint="@color/primary_warm" />
 
             <ImageButton
@@ -118,7 +119,7 @@
                 android:layout_marginStart="4dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Share"
-                android:src="@android:drawable/ic_menu_send"
+                android:src="@drawable/ic_share"
                 app:tint="@color/text_secondary" />
 
             <ImageButton
@@ -128,7 +129,7 @@
                 android:layout_marginStart="4dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="PDF"
-                android:src="@android:drawable/ic_menu_save"
+                android:src="@drawable/ic_image_to_pdf"
                 app:tint="@color/text_secondary" />
 
             <ImageButton
@@ -138,7 +139,7 @@
                 android:layout_marginStart="4dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Backup"
-                android:src="@android:drawable/ic_menu_upload"
+                android:src="@drawable/ic_cloud_upload"
                 app:tint="@color/text_secondary" />
 
         </LinearLayout>
@@ -149,7 +150,7 @@
         android:id="@+id/btnSaveNote"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:src="@android:drawable/ic_menu_save"
+        android:src="@drawable/ic_edit"
         app:backgroundTint="@color/primary_warm"
         app:layout_anchor="@id/bottomAppBar"
         app:tint="@android:color/white" />

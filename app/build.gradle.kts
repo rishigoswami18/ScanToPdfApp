@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -8,6 +10,13 @@ plugins {
 
 }
 
+// Load keystore properties
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(keystorePropertiesFile.inputStream())
+}
+
 android {
     namespace = "com.hrishipvt.scantopdf"
     compileSdk = 36
@@ -15,20 +24,34 @@ android {
     defaultConfig {
         applicationId = "com.hrishipvt.scantopdf"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            keyAlias = keystoreProperties["keyAlias"] as String
+            keyPassword = keystoreProperties["keyPassword"] as String
+            storeFile = file(keystoreProperties["storeFile"] as String)
+            storePassword = keystoreProperties["storePassword"] as String
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
@@ -48,6 +71,7 @@ android {
     }
     buildFeatures {
         viewBinding = true
+        buildConfig = true
     }
 }
 
@@ -61,8 +85,7 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.storage.ktx)
     implementation("com.google.firebase:firebase-firestore-ktx")
-    implementation(libs.localagents.rag)
-    implementation(libs.firebase.ai)
+    implementation("com.google.firebase:firebase-messaging-ktx")
 
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -92,6 +115,8 @@ dependencies {
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.mlkit:text-recognition:16.0.1")
 
+    // Groq API (free tier - uses OkHttp for REST calls)
+
     implementation("androidx.recyclerview:recyclerview:1.3.2")
 
     implementation("com.github.gcacace:signature-pad:1.3.1")
@@ -100,6 +125,8 @@ dependencies {
     implementation("com.google.android.gms:play-services-auth:21.0.0")
 
     implementation("com.google.firebase:firebase-functions-ktx:21.0.0")
+    implementation("com.google.firebase:firebase-appcheck-playintegrity")
+    implementation("com.google.firebase:firebase-appcheck-debug")
 
     implementation("com.itextpdf:itextg:5.5.10")
     
@@ -118,6 +145,8 @@ dependencies {
 
     // REPLACE kapt with ksp
     ksp("androidx.room:room-compiler:$room_version")
+
+    implementation("com.google.android.gms:play-services-ads:23.0.0")
 
     implementation("androidx.gridlayout:gridlayout:1.0.0")
 

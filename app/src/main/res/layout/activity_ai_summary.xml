@@ -16,8 +16,9 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:navigationIcon="@android:drawable/ic_menu_revert"
-            app:title="Advanced AI Assistant"
+            app:navigationIcon="@drawable/ic_back"
+            app:navigationIconTint="@color/text_primary"
+            app:title="AI Insights"
             app:titleTextColor="@color/text_primary" />
 
     </com.google.android.material.appbar.AppBarLayout>
@@ -39,7 +40,7 @@
                 app:cardBackgroundColor="@color/surface"
                 app:cardCornerRadius="16dp"
                 app:cardElevation="0dp"
-                app:strokeColor="@color/text_grey"
+                app:strokeColor="@color/stroke_subtle"
                 app:strokeWidth="1dp">
 
                 <EditText
@@ -81,7 +82,8 @@
                         android:layout_height="wrap_content"
                         android:layout_marginEnd="8dp"
                         android:text="Summarize"
-                        app:chipIcon="@android:drawable/ic_menu_sort_alphabetically" />
+                        app:chipIcon="@drawable/ic_ai_summary"
+                        app:chipIconTint="@color/primary_warm" />
 
                     <com.google.android.material.chip.Chip
                         android:id="@+id/chipKeywords"
@@ -90,7 +92,8 @@
                         android:layout_height="wrap_content"
                         android:layout_marginEnd="8dp"
                         android:text="Key Points"
-                        app:chipIcon="@android:drawable/ic_menu_help" />
+                        app:chipIcon="@drawable/ic_ocr"
+                        app:chipIconTint="@color/primary_warm" />
 
                     <com.google.android.material.chip.Chip
                         android:id="@+id/chipTone"
@@ -99,7 +102,8 @@
                         android:layout_height="wrap_content"
                         android:layout_marginEnd="8dp"
                         android:text="Check Tone"
-                        app:chipIcon="@android:drawable/ic_menu_info_details" />
+                        app:chipIcon="@drawable/ic_eye"
+                        app:chipIconTint="@color/primary_warm" />
 
                     <com.google.android.material.chip.Chip
                         android:id="@+id/chipExplain"
@@ -107,7 +111,8 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Simplify"
-                        app:chipIcon="@android:drawable/ic_menu_view" />
+                        app:chipIcon="@drawable/ic_chat"
+                        app:chipIconTint="@color/primary_warm" />
                 </LinearLayout>
             </HorizontalScrollView>
 
@@ -121,7 +126,7 @@
                 android:textSize="16sp"
                 app:backgroundTint="@color/primary_warm"
                 app:cornerRadius="12dp"
-                app:icon="@android:drawable/ic_menu_search" />
+                app:icon="@drawable/ic_send" />
 
             <ProgressBar
                 android:id="@+id/progressBar"

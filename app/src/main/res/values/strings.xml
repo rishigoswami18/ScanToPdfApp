@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">ScanToPdf</string>
+    <string name="app_name">SmartScan</string>
     <string name="save_pdf">Save PDF</string>
     <string name="scan_document">Scan Document</string>
     <string name="capture">Capture</string>
@@ -28,8 +28,8 @@
     <string name="voice_command">Voice Command</string>
     <string name="read_aloud">Read Aloud</string>
 
-    <string name="app_title_display">ScanToPdf Workspace</string>
-    <string name="home_eyebrow">Professional document workspace</string>
+    <string name="app_title_display">SmartScan Workspace</string>
+    <string name="home_eyebrow">SmartScan Workspace</string>
     <string name="home_greeting_personal">%1$s, %2$s</string>
     <string name="home_greeting_generic">%1$s</string>
     <string name="home_workspace_summary_signed_in">Everything is ready for secure scanning, organization, and AI-assisted review.</string>
@@ -47,7 +47,7 @@
     <string name="bg_content_desc">Decorative background</string>
     <string name="dashboard_overview">Workspace overview</string>
     <string name="dashboard_overview_caption">Track output, notes, and next actions at a glance.</string>
-    <string name="about_capstone">About ScanToPdf</string>
+    <string name="about_capstone">About SmartScan</string>
     <string name="local_pdfs">Saved PDFs</string>
     <string name="smart_notes">Smart Notes</string>
     <string name="zero_count">0</string>
@@ -70,7 +70,7 @@
     <string name="splash_badge">Professional document suite</string>
     <string name="splash_tagline">Scan, organize, sign, and summarize documents with one clean workspace.</string>
     <string name="splash_powered_by">Crafted by RG apps</string>
-    <string name="app_logo_desc">ScanToPdf logo</string>
+    <string name="app_logo_desc">SmartScan logo</string>
 
     <string name="presentation_card_badge">Class presentation</string>
     <string name="presentation_card_title">Ready to present in under two minutes</string>
@@ -83,13 +83,13 @@
     <string name="presentation_guide_title">Class Demo Guide</string>
     <string name="presentation_guide_message">1. Start with the dashboard and explain that the app combines scanning, PDF tools, AI, and voice control in one workspace.\n\n2. Open a scan or import flow, capture a page, and save it as a PDF.\n\n3. Open AI Assistant and ask for a summary, key points, or a simplified explanation.\n\n4. Finish by showing that major screens can be controlled through the autonomous voice agent.</string>
     <string name="presentation_pitch_title">Presentation Pitch</string>
-    <string name="presentation_pitch_body">ScanToPdf is a smart document workspace that helps users scan physical papers, turn them into organized PDFs, ask AI questions about the content, and even control the app by voice. It brings productivity, accessibility, and automation together in one mobile experience.</string>
-    <string name="presentation_pitch_spoken">ScanToPdf is a smart document workspace that lets users scan papers, convert them into PDFs, understand them with AI, and control the app with voice. It combines productivity, accessibility, and automation in one simple mobile experience.</string>
+    <string name="presentation_pitch_body">SmartScan is a smart document workspace that helps users scan physical papers, turn them into organized PDFs, ask AI questions about the content, and even control the app by voice. It brings productivity, accessibility, and automation together in one mobile experience.</string>
+    <string name="presentation_pitch_spoken">SmartScan is a smart document workspace that lets users scan papers, convert them into PDFs, understand them with AI, and control the app with voice. It combines productivity, accessibility, and automation in one simple mobile experience.</string>
     <string name="presentation_demo_ai">Open AI demo</string>
     <string name="presentation_demo_scan">Open scanner</string>
     <string name="practice_with_voice">Read with voice</string>
     <string name="close_label">Close</string>
-    <string name="presentation_ai_prompt">Create a short class presentation pitch for ScanToPdf highlighting document scanning, AI assistance, PDF tools, and voice control.</string>
+    <string name="presentation_ai_prompt">Create a short class presentation pitch for SmartScan highlighting document scanning, AI assistance, PDF tools, and voice control.</string>
 
     <string name="ai_prompt_summary">Summarize</string>
     <string name="ai_prompt_pitch">Presentation pitch</string>

@@ -16,7 +16,7 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:navigationIcon="@android:drawable/ic_menu_revert"
+            app:navigationIcon="@drawable/ic_back"
             app:navigationIconTint="@color/text_primary" />
 
         <androidx.constraintlayout.widget.ConstraintLayout
@@ -92,7 +92,7 @@
         <ImageView
             android:layout_width="120dp"
             android:layout_height="120dp"
-            android:src="@android:drawable/ic_menu_edit"
+            android:src="@drawable/ic_note"
             app:tint="@color/text_grey" />
 
         <TextView
@@ -120,7 +120,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="18dp"
             android:text="@string/notes_empty_create"
-            app:icon="@android:drawable/ic_input_add" />
+            app:icon="@drawable/ic_add" />
     </LinearLayout>
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -144,7 +144,7 @@
         android:text="New Note"
         android:textColor="@color/surface"
         app:backgroundTint="@color/primary_warm"
-        app:icon="@android:drawable/ic_input_add"
+        app:icon="@drawable/ic_add"
         app:iconTint="@color/surface" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

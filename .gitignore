@@ -17,5 +17,12 @@ local.properties
 app/google-services.json
 
 # Local configuration and keys
+keystore.properties
+*.jks
+*.keystore
 
-.secrets
+# Sensitive service account file
+app/src/main/assets/service-account.json
+
+# Firebase Functions
+functions/node_modules/

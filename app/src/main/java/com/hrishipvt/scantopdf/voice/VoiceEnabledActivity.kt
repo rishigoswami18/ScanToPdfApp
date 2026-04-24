@@ -3,6 +3,7 @@ package com.hrishipvt.scantopdf.voice
 import android.Manifest
 import android.content.Intent
 import android.content.res.ColorStateList
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -23,6 +24,7 @@ import com.google.android.material.floatingactionbutton.ExtendedFloatingActionBu
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.firebase.auth.FirebaseAuth
 import com.hrishipvt.scantopdf.R
+import com.hrishipvt.scantopdf.ai.GeminiApi
 import com.hrishipvt.scantopdf.ui.AiChatActivity
 import com.hrishipvt.scantopdf.ui.AiSummaryActivity
 import com.hrishipvt.scantopdf.ui.CameraActivity
@@ -42,6 +44,10 @@ abstract class VoiceEnabledActivity : AppCompatActivity() {
         const val KEY_AUTONOMOUS_VOICE = "AUTONOMOUS_VOICE"
         const val KEY_VOICE_PERMISSION_ASKED = "VOICE_PERMISSION_ASKED"
         const val EXTRA_OPEN_SETTINGS = "OPEN_SETTINGS"
+        const val KEY_APP_MODE = "APP_MODE"
+        const val KEY_MODE_CHOSEN = "MODE_CHOSEN"
+        const val MODE_VOICE = "voice"
+        const val MODE_MANUAL = "manual"
 
         fun normalizeSpokenEmail(input: String): String {
             return input.lowercase(Locale.getDefault())
@@ -87,6 +93,13 @@ abstract class VoiceEnabledActivity : AppCompatActivity() {
             }
         }
 
+    private val notificationPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (granted) {
+                Toast.makeText(this, "Notifications enabled.", Toast.LENGTH_SHORT).show()
+            }
+        }
+
     protected val appConfig by lazy { getSharedPreferences(APP_CONFIG_PREFS, MODE_PRIVATE) }
 
     protected open fun defaultAutonomousVoiceEnabled(): Boolean = true
@@ -100,7 +113,13 @@ abstract class VoiceEnabledActivity : AppCompatActivity() {
     protected open fun handleScreenVoiceCommand(rawCommand: String, normalizedCommand: String): Boolean = false
 
     protected open fun onUnknownVoiceCommand(rawCommand: String, normalizedCommand: String) {
-        speak("I did not catch that. ${voiceCommandHelp()}")
+        speak("Let me think about that.")
+        GeminiApi.processAiTask(
+            prompt = "You are a smart autonomous voice assistant inside a mobile document productivity app called SmartScan. The user said: '$rawCommand'. If it's a question about the app or documents, answer it. Otherwise, respond briefly in one or two short sentences.",
+            content = "Current screen: ${this.javaClass.simpleName}",
+            onSuccess = { answer -> speak(answer.replace("*", "")) },
+            onError = { speak("I did not catch that. ${voiceCommandHelp()}") }
+        )
     }
 
     protected open fun onVoicePermissionResult(granted: Boolean) = Unit
@@ -109,7 +128,39 @@ abstract class VoiceEnabledActivity : AppCompatActivity() {
 
     protected open fun onVoiceUtteranceCompleted(utteranceId: String?) = Unit
 
+    protected fun isVoiceMode(): Boolean {
+        return appConfig.getString(KEY_APP_MODE, MODE_VOICE) == MODE_VOICE
+    }
+
+    protected fun setAppMode(mode: String) {
+        appConfig.edit()
+            .putString(KEY_APP_MODE, mode)
+            .putBoolean(KEY_MODE_CHOSEN, true)
+            .apply()
+
+        if (mode == MODE_MANUAL) {
+            isVoiceActiveForScreen = false
+            stopListeningInternal()
+            existingVoiceButton?.visibility = View.GONE
+            appConfig.edit().putBoolean(KEY_AUTONOMOUS_VOICE, false).apply()
+        } else {
+            existingVoiceButton?.visibility = View.VISIBLE
+            updateVoiceButtonState()
+        }
+    }
+
+    protected fun isModeChosen(): Boolean {
+        return appConfig.getBoolean(KEY_MODE_CHOSEN, false)
+    }
+
     protected fun setupVoiceAssistant() {
+        if (!isVoiceMode()) {
+            // Manual mode — no voice features, hide FAB
+            existingVoiceButton?.visibility = View.GONE
+            maybeRequestNotificationPermission()
+            return
+        }
+
         ensureVoiceButton()
         initializeTextToSpeech()
         if (isVoiceRecognitionSupported()) {
@@ -117,10 +168,62 @@ abstract class VoiceEnabledActivity : AppCompatActivity() {
             maybeRequestMicrophoneForAutonomousMode()
         }
         updateVoiceButtonState()
+        maybeRequestNotificationPermission()
+    }
+
+    protected fun showModeChooserDialog(onDismiss: (() -> Unit)? = null) {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_mode_chooser, null)
+        val radioVoice = dialogView.findViewById<android.widget.RadioButton>(R.id.radioVoice)
+        val radioManual = dialogView.findViewById<android.widget.RadioButton>(R.id.radioManual)
+        val cardVoice = dialogView.findViewById<android.widget.LinearLayout>(R.id.cardVoiceMode)
+        val cardManual = dialogView.findViewById<android.widget.LinearLayout>(R.id.cardManualMode)
+
+        // Default to voice mode
+        radioVoice.isChecked = isVoiceMode()
+        radioManual.isChecked = !isVoiceMode()
+
+        cardVoice.setOnClickListener {
+            radioVoice.isChecked = true
+            radioManual.isChecked = false
+        }
+        cardManual.setOnClickListener {
+            radioManual.isChecked = true
+            radioVoice.isChecked = false
+        }
+        radioVoice.setOnCheckedChangeListener { _, checked ->
+            if (checked) radioManual.isChecked = false
+        }
+        radioManual.setOnCheckedChangeListener { _, checked ->
+            if (checked) radioVoice.isChecked = false
+        }
+
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("Choose Your Mode")
+            .setView(dialogView)
+            .setCancelable(false)
+            .setPositiveButton("Continue") { _, _ ->
+                val mode = if (radioVoice.isChecked) MODE_VOICE else MODE_MANUAL
+                setAppMode(mode)
+                if (mode == MODE_VOICE) {
+                    setupVoiceAssistant()
+                }
+                onDismiss?.invoke()
+            }
+            .show()
+    }
+
+    private fun maybeRequestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
     }
 
     protected fun speak(text: String, utteranceId: String = "VOICE_REPLY") {
         val tts = textToSpeech ?: return
+        // Stop listening BEFORE speaking to prevent echo feedback
+        stopListeningInternal()
         isTtsSpeaking = true
         tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
     }
@@ -197,7 +300,8 @@ abstract class VoiceEnabledActivity : AppCompatActivity() {
                         isTtsSpeaking = false
                         onVoiceUtteranceCompleted(utteranceId)
                         if (shouldKeepVoiceActive() && hasAudioPermission()) {
-                            speechHandler.post { startListeningInternal() }
+                            // Delay resume to avoid picking up tail-end of TTS audio
+                            speechHandler.postDelayed({ startListeningInternal() }, 600)
                         }
                     }
 
@@ -205,7 +309,7 @@ abstract class VoiceEnabledActivity : AppCompatActivity() {
                         isTtsSpeaking = false
                         onVoiceUtteranceCompleted(utteranceId)
                         if (shouldKeepVoiceActive() && hasAudioPermission()) {
-                            speechHandler.post { startListeningInternal() }
+                            speechHandler.postDelayed({ startListeningInternal() }, 600)
                         }
                     }
                 })
@@ -265,87 +369,71 @@ abstract class VoiceEnabledActivity : AppCompatActivity() {
     }
 
     private fun handleGlobalVoiceCommand(command: String): Boolean {
+        // Support for "Open X", "Go to X", "Show me X" and Hindi "X dikhao"
+        val targetScreen = textAfterCommand(command, "open ", "go to ", "show me ", "dikhao ", "khola ")
+        val navigationRequest = targetScreen.ifEmpty { command }
+
         return when {
-            containsAny(command, "stop listening", "voice off", "disable voice", "mute voice") -> {
+            containsAny(command, "stop listening", "voice off", "disable voice", "mute voice", "band karo") -> {
                 isVoiceActiveForScreen = false
                 stopListeningInternal()
                 updateVoiceButtonState()
-                Toast.makeText(this, "Voice agent disabled for this screen.", Toast.LENGTH_SHORT).show()
+                speak("Voice assistant disabled.")
                 true
             }
 
-            containsAny(command, "autonomous mode on", "enable autonomous mode", "hands free mode on", "enable hands free mode") -> {
-                setAutonomousVoiceEnabled(true)
-                speak("Autonomous voice mode enabled.")
-                true
-            }
-
-            containsAny(command, "autonomous mode off", "disable autonomous mode", "hands free mode off", "disable hands free mode") -> {
-                appConfig.edit().putBoolean(KEY_AUTONOMOUS_VOICE, false).apply()
-                speak("Autonomous voice mode disabled.")
-                true
-            }
-
-            containsAny(command, "help", "voice help", "what can i say", "voice commands") -> {
-                speak(voiceCommandHelp())
-                true
-            }
-
-            containsAny(command, "go back", "back", "return", "close this") -> {
-                speak("Going back.")
-                onBackPressedDispatcher.onBackPressed()
-                true
-            }
-
-            containsAny(command, "home", "dashboard", "main screen") -> {
+            containsAny(navigationRequest, "home", "dashboard", "main", "ghar") -> {
                 speak("Opening home.")
                 launchActivity(MainActivity::class.java, clearTop = true)
                 true
             }
 
-            containsAny(command, "files", "documents", "my pdfs", "my documents") -> {
-                speak("Opening files.")
+            containsAny(navigationRequest, "files", "documents", "my pdfs", "pdfs") -> {
+                speak("Opening your documents.")
                 launchActivity(PdfListActivity::class.java)
                 true
             }
 
-            containsAny(command, "notes", "my notes") -> {
-                speak("Opening notes.")
+            containsAny(navigationRequest, "notes", "my notes", "notebook") -> {
+                speak("Opening your notes.")
                 launchActivity(NotesListActivity::class.java)
                 true
             }
 
-            containsAny(command, "new note", "create note", "add note") -> {
+            containsAny(command, "new note", "create note", "add note", "likho") -> {
+                val titlePart = textAfterCommand(command, 
+                    "create note with title ", "create note titled ", 
+                    "new note with title ", "add note called ", 
+                    "create note and give title ", "create note give title ",
+                    "create note title ", "new note title ", "note likho जिसका नाम है ")
                 speak("Opening a new note.")
-                launchActivity(NoteActivity::class.java)
+                val intent = Intent(this, NoteActivity::class.java)
+                if (titlePart.isNotEmpty()) {
+                    intent.putExtra("title", titlePart)
+                }
+                startActivity(intent)
                 true
             }
 
-            containsAny(command, "scan", "camera", "scanner") -> {
+            containsAny(navigationRequest, "scan", "camera", "scanner", "photo kheencho") -> {
                 speak("Opening scanner.")
                 launchActivity(CameraActivity::class.java)
                 true
             }
 
-            containsAny(command, "merge", "merge pdf") -> {
-                speak("Opening merge PDF.")
+            containsAny(navigationRequest, "merge", "combine", "merge pdf") -> {
+                speak("Opening merge PDF tool.")
                 launchActivity(MergePdfActivity::class.java)
                 true
             }
 
-            containsAny(command, "ai assistant", "assistant", "chat") -> {
+            containsAny(navigationRequest, "ai assistant", "assistant", "chat", "bot", "pucho") -> {
                 speak("Opening AI assistant.")
                 launchActivity(AiChatActivity::class.java)
                 true
             }
 
-            containsAny(command, "ai summary", "summary screen") -> {
-                speak("Opening AI summary.")
-                launchActivity(AiSummaryActivity::class.java)
-                true
-            }
-
-            containsAny(command, "settings", "preferences") -> {
+            containsAny(navigationRequest, "settings", "preferences", "config", "setting") -> {
                 if (openSettingsFromVoice()) {
                     true
                 } else {
@@ -355,28 +443,33 @@ abstract class VoiceEnabledActivity : AppCompatActivity() {
                 }
             }
 
-            containsAny(command, "login", "log in", "sign in") -> {
-                speak("Opening sign in.")
-                launchActivity(LoginActivity::class.java)
+            containsAny(command, "help", "voice help", "what can i say", "madad") -> {
+                speak(voiceCommandHelp())
                 true
             }
 
-            containsAny(command, "sign up", "signup", "create account", "register") -> {
-                speak("Opening sign up.")
-                launchActivity(SignupActivity::class.java)
+            containsAny(command, "go back", "back", "return", "piche", "close") -> {
+                speak("Going back.")
+                onBackPressedDispatcher.onBackPressed()
                 true
             }
 
-            containsAny(command, "logout", "log out", "sign out") -> {
-                FirebaseAuth.getInstance().signOut()
-                speak("You have been signed out.")
-                launchActivity(MainActivity::class.java, clearTop = true)
+            containsAny(command, "autonomous mode on", "enable autonomous mode", "hands free mode on") -> {
+                setAutonomousVoiceEnabled(true)
+                speak("Autonomous voice mode enabled.")
+                true
+            }
+
+            containsAny(command, "autonomous mode off", "disable autonomous mode") -> {
+                appConfig.edit().putBoolean(KEY_AUTONOMOUS_VOICE, false).apply()
+                speak("Autonomous voice mode disabled.")
                 true
             }
 
             else -> false
         }
     }
+
 
     private fun launchActivity(target: Class<*>, clearTop: Boolean = false, openSettings: Boolean = false) {
         if (javaClass == target && !openSettings) return
@@ -425,6 +518,8 @@ abstract class VoiceEnabledActivity : AppCompatActivity() {
 
     private fun startListeningInternal() {
         if (!hasAudioPermission() || !isVoiceRecognitionSupported()) return
+        // Never listen while TTS is speaking — prevents echo feedback
+        if (isTtsSpeaking) return
 
         initializeSpeechRecognizer()
         updateVoiceButtonState()
@@ -494,6 +589,10 @@ abstract class VoiceEnabledActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        if (!isVoiceMode()) {
+            existingVoiceButton?.visibility = View.GONE
+            return
+        }
         if (shouldKeepVoiceActive() && hasAudioPermission()) {
             startListeningInternal()
         } else {
@@ -517,7 +616,7 @@ abstract class VoiceEnabledActivity : AppCompatActivity() {
         super.onDestroy()
     }
 
-    private fun containsAny(command: String, vararg phrases: String): Boolean {
+    protected fun containsAny(command: String, vararg phrases: String): Boolean {
         return phrases.any { command.contains(it) }
     }
 

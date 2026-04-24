@@ -1,10 +1,12 @@
 package com.hrishipvt.scantopdf.utils
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
+import android.os.Environment
 import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
@@ -28,106 +30,110 @@ object NotePdfUtils {
 
     fun createPdf(context: Context, title: String, content: String): File? {
         val pdfDocument = PdfDocument()
-        
-        // Optimized Typography for Readability
-        val titlePaint = TextPaint().apply {
-            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
-            textSize = 22f
-            color = android.graphics.Color.parseColor("#3E2723") // Theme Brown
-            isAntiAlias = true
-        }
-
-        val contentPaint = TextPaint().apply {
-            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
-            textSize = 12f
-            color = android.graphics.Color.parseColor("#424242")
-            isAntiAlias = true
-        }
-
         try {
-            val usableWidth = PAGE_WIDTH - (MARGIN * 2)
-            
-            // Dynamic Layout Engines
-            val titleLayout = StaticLayout.Builder.obtain(title, 0, title.length, titlePaint, usableWidth.toInt())
-                .setAlignment(Layout.Alignment.ALIGN_NORMAL)
-                .setLineSpacing(0f, 1.2f)
-                .build()
+            val bitmaps = renderTextToBitmaps(title, content)
+            if (bitmaps.isEmpty()) return null
 
-            val contentLayout = StaticLayout.Builder.obtain(content, 0, content.length, contentPaint, usableWidth.toInt())
-                .setAlignment(Layout.Alignment.ALIGN_NORMAL)
-                .setLineSpacing(0f, 1.1f)
-                .build()
-
-            var currentPageNumber = 1
-            var currentY = MARGIN
-
-            // Initialize Master Page
-            var pageInfo = PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, currentPageNumber).create()
-            var page = pdfDocument.startPage(pageInfo)
-            var canvas = page.canvas
-
-            // Header/Title Rendering
-            canvas.save()
-            canvas.translate(MARGIN, currentY)
-            titleLayout.draw(canvas)
-            canvas.restore()
-            currentY += titleLayout.height + 30f // Vertical rhythm spacing
-
-            // Intelligent Multi-page Content Streaming
-            val lineCount = contentLayout.lineCount
-            for (i in 0 until lineCount) {
-                val lineTop = contentLayout.getLineTop(i)
-                val lineBottom = contentLayout.getLineBottom(i)
-                val lineHeight = (lineBottom - lineTop).toFloat()
-
-                // Page Overflow Detection & Handler
-                if (currentY + lineHeight > PAGE_HEIGHT - MARGIN - 50f) {
-                    drawFooter(canvas, currentPageNumber)
-                    pdfDocument.finishPage(page)
-                    
-                    currentPageNumber++
-                    pageInfo = PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, currentPageNumber).create()
-                    page = pdfDocument.startPage(pageInfo)
-                    canvas = page.canvas
-                    currentY = MARGIN
-                }
-
-                canvas.save()
-                canvas.translate(MARGIN, currentY)
-                
-                // Content Line Injection
-                val start = contentLayout.getLineStart(i)
-                val end = contentLayout.getLineEnd(i)
-                val lineText = content.substring(start, end).trim()
-                if (lineText.isNotEmpty()) {
-                    canvas.drawText(lineText, 0f, lineHeight, contentPaint)
-                }
-                
-                canvas.restore()
-                currentY += lineHeight
+            bitmaps.forEachIndexed { index, bitmap ->
+                val pageInfo = PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, index + 1).create()
+                val page = pdfDocument.startPage(pageInfo)
+                page.canvas.drawBitmap(bitmap, 0f, 0f, null)
+                pdfDocument.finishPage(page)
             }
 
-            drawFooter(canvas, currentPageNumber)
-            pdfDocument.finishPage(page)
-
-            // Secure File System Persistance
-            val safeTitle = title.replace(Regex("[^a-zA-Z0-9]"), "_")
+            val safeTitle = title.ifEmpty { "Note" }.replace(Regex("[^a-zA-Z0-9]"), "_")
             val fileName = "DOC_${safeTitle}_${System.currentTimeMillis()}.pdf"
-            val outputDirectory = context.getExternalFilesDir(null) ?: context.filesDir
+            
+            // Save in isolated directory
+            val outputDirectory = PdfUtils.getIsolatedPdfDirectory(context)
             val file = File(outputDirectory, fileName)
             
             FileOutputStream(file).use { outputStream ->
                 pdfDocument.writeTo(outputStream)
             }
-            
             return file
-
         } catch (e: Exception) {
             e.printStackTrace()
             return null
         } finally {
             pdfDocument.close()
         }
+    }
+
+    fun renderTextToBitmaps(title: String, content: String): List<Bitmap> {
+        val bitmaps = mutableListOf<Bitmap>()
+        
+        val titlePaint = TextPaint().apply {
+            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
+            textSize = 24f
+            color = android.graphics.Color.BLACK
+            isAntiAlias = true
+        }
+
+        val contentPaint = TextPaint().apply {
+            typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
+            textSize = 13f
+            color = android.graphics.Color.parseColor("#333333")
+            isAntiAlias = true
+        }
+
+        val usableWidth = PAGE_WIDTH - (MARGIN * 2)
+        val titleLayout = StaticLayout.Builder.obtain(title, 0, title.length, titlePaint, usableWidth.toInt())
+            .setAlignment(Layout.Alignment.ALIGN_NORMAL)
+            .setLineSpacing(0f, 1.2f)
+            .build()
+
+        val contentLayout = StaticLayout.Builder.obtain(content, 0, content.length, contentPaint, usableWidth.toInt())
+            .setAlignment(Layout.Alignment.ALIGN_NORMAL)
+            .setLineSpacing(0f, 1.1f)
+            .build()
+
+        var currentPageNumber = 1
+        var currentY = MARGIN
+
+        var currentBitmap = Bitmap.createBitmap(PAGE_WIDTH, PAGE_HEIGHT, Bitmap.Config.ARGB_8888)
+        var canvas = Canvas(currentBitmap)
+        canvas.drawColor(android.graphics.Color.WHITE)
+
+        // Draw Title
+        canvas.save()
+        canvas.translate(MARGIN, currentY)
+        titleLayout.draw(canvas)
+        canvas.restore()
+        currentY += titleLayout.height + 30f
+
+        val lineCount = contentLayout.lineCount
+        for (i in 0 until lineCount) {
+            val lineHeight = (contentLayout.getLineBottom(i) - contentLayout.getLineTop(i)).toFloat()
+
+            if (currentY + lineHeight > PAGE_HEIGHT - MARGIN - 60f) {
+                drawFooter(canvas, currentPageNumber)
+                bitmaps.add(currentBitmap)
+                
+                currentPageNumber++
+                currentBitmap = Bitmap.createBitmap(PAGE_WIDTH, PAGE_HEIGHT, Bitmap.Config.ARGB_8888)
+                canvas = Canvas(currentBitmap)
+                canvas.drawColor(android.graphics.Color.WHITE)
+                currentY = MARGIN
+            }
+
+            canvas.save()
+            // Translate to the margin and current Y
+            canvas.translate(MARGIN, currentY)
+            // Clip to only draw this specific line from the StaticLayout. 
+            // We use 0 as the top of the clip relative to currentY.
+            canvas.clipRect(0f, 0f, usableWidth, lineHeight)
+            // Offset the draw by the line's top within the layout so it draws at our current translation
+            canvas.translate(0f, -contentLayout.getLineTop(i).toFloat())
+            contentLayout.draw(canvas)
+            canvas.restore()
+            currentY += lineHeight
+        }
+
+        drawFooter(canvas, currentPageNumber)
+        bitmaps.add(currentBitmap)
+        
+        return bitmaps
     }
 
     private fun drawFooter(canvas: Canvas, pageNum: Int) {

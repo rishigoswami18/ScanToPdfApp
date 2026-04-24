@@ -1,14 +1,20 @@
 package com.hrishipvt.scantopdf.ui
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.OptIn
+import androidx.camera.core.CameraControl
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
@@ -26,14 +32,25 @@ import com.hrishipvt.scantopdf.databinding.ActivityCameraBinding
 import com.hrishipvt.scantopdf.utils.ScanSession
 import com.hrishipvt.scantopdf.voice.VoiceEnabledActivity
 import java.io.File
+import kotlin.math.sqrt
 
-class CameraActivity : VoiceEnabledActivity() {
+class CameraActivity : VoiceEnabledActivity(), SensorEventListener {
 
     private lateinit var binding: ActivityCameraBinding
     private lateinit var imageCapture: ImageCapture
     private lateinit var textRecognizer: TextRecognizer
     private var lastExtractedText: String = ""
     private var isProcessingFrame = false
+
+    private var sensorManager: SensorManager? = null
+    private var lightSensor: Sensor? = null
+    private var accelerometer: Sensor? = null
+    private var cameraControl: CameraControl? = null
+
+    private var currentAcceleration = SensorManager.GRAVITY_EARTH
+    private var lastAcceleration = SensorManager.GRAVITY_EARTH
+    private var acceleration = 0f
+    private var isShaking = false
 
     private val permissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -59,9 +76,55 @@ class CameraActivity : VoiceEnabledActivity() {
             permissionLauncher.launch(Manifest.permission.CAMERA)
         }
 
+        setupSensors()
         setupListeners()
         updatePageCount()
     }
+
+    private fun setupSensors() {
+        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        lightSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_LIGHT)
+        accelerometer = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        sensorManager?.registerListener(this, lightSensor, SensorManager.SENSOR_DELAY_NORMAL)
+        sensorManager?.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_NORMAL)
+    }
+
+    override fun onPause() {
+        sensorManager?.unregisterListener(this)
+        super.onPause()
+    }
+
+    override fun onSensorChanged(event: SensorEvent?) {
+        if (event == null) return
+        when (event.sensor.type) {
+            Sensor.TYPE_LIGHT -> {
+                val lightLevel = event.values[0]
+                if (lightLevel < 10.0f) {
+                    cameraControl?.enableTorch(true)
+                } else if (lightLevel > 20.0f) {
+                    cameraControl?.enableTorch(false)
+                }
+            }
+            Sensor.TYPE_ACCELEROMETER -> {
+                val x = event.values[0]
+                val y = event.values[1]
+                val z = event.values[2]
+
+                lastAcceleration = currentAcceleration
+                currentAcceleration = sqrt((x * x + y * y + z * z).toDouble()).toFloat()
+                val delta = currentAcceleration - lastAcceleration
+                acceleration = acceleration * 0.9f + delta
+
+                isShaking = acceleration > 2.5f
+            }
+        }
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
 
     override fun voiceCommandHelp(): String {
         return "Try saying capture, extract text, done, page count, back, or home."
@@ -142,7 +205,8 @@ class CameraActivity : VoiceEnabledActivity() {
 
             try {
                 cameraProvider.unbindAll()
-                cameraProvider.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA, preview, imageCapture, imageAnalysis)
+                val camera = cameraProvider.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA, preview, imageCapture, imageAnalysis)
+                cameraControl = camera.cameraControl
             } catch (error: Exception) {
                 error.printStackTrace()
             }
@@ -177,6 +241,12 @@ class CameraActivity : VoiceEnabledActivity() {
     private fun captureImage() {
         if (!::imageCapture.isInitialized) {
             Toast.makeText(this, "Camera is still starting", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        if (isShaking) {
+            Toast.makeText(this, "Hold steady to capture!", Toast.LENGTH_SHORT).show()
+            speak("Please hold the device steady.")
             return
         }
 

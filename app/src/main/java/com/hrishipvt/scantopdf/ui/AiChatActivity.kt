@@ -93,7 +93,7 @@ class AiChatActivity : VoiceEnabledActivity() {
     }
 
     override fun handleScreenVoiceCommand(rawCommand: String, normalizedCommand: String): Boolean {
-        val dictatedPrompt = textAfterCommand(rawCommand, "message ", "ask ", "question ", "send ")
+        val dictatedPrompt = textAfterCommand(rawCommand, "message ", "ask ", "question ", "send ", "batao ", "pucho ")
 
         return when {
             dictatedPrompt.isNotEmpty() -> {
@@ -103,53 +103,53 @@ class AiChatActivity : VoiceEnabledActivity() {
                 true
             }
 
-            normalizedCommand.contains("attach photo") || normalizedCommand.contains("upload photo") || normalizedCommand.contains("pick photo") || normalizedCommand.contains("gallery") -> {
+            normalizedCommand.contains("photo") || normalizedCommand.contains("image") || normalizedCommand.contains("gallery") || normalizedCommand.contains("tasveer") -> {
                 speak("Choose a photo to analyze.")
                 binding.btnQuickPhoto.performClick()
                 true
             }
 
-            normalizedCommand.contains("attach file") || normalizedCommand.contains("attach document") || normalizedCommand.contains("attach pdf") || normalizedCommand.contains("open drive") || normalizedCommand.contains("upload document") -> {
+            normalizedCommand.contains("file") || normalizedCommand.contains("document") || normalizedCommand.contains("pdf") || normalizedCommand.contains("drive") -> {
                 speak("Choose a document to analyze.")
                 binding.btnQuickDrive.performClick()
                 true
             }
 
-            normalizedCommand.contains("camera") || normalizedCommand.contains("capture") || normalizedCommand.contains("take photo") -> {
+            normalizedCommand.contains("camera") || normalizedCommand.contains("capture") || normalizedCommand.contains("photo kheencho") -> {
                 speak("Opening camera capture.")
                 binding.btnQuickCamera.performClick()
                 true
             }
 
-            normalizedCommand.contains("read last reply") || normalizedCommand.contains("read response") || normalizedCommand.contains("read answer") -> {
+            normalizedCommand.contains("read") || normalizedCommand.contains("sunao") || normalizedCommand.contains("reply") -> {
                 val reply = messageList.lastOrNull { !it.isUser }?.text?.trim().orEmpty()
                 if (reply.isNotEmpty()) {
-                    speak(reply.take(320))
+                    speak(reply.take(500)) // Increased limit slightly
                 } else {
                     speak("There is no AI response to read yet.")
                 }
                 true
             }
 
-            normalizedCommand.contains("clear chat") || normalizedCommand.contains("delete chat") -> {
+            normalizedCommand.contains("clear") || normalizedCommand.contains("delete") || normalizedCommand.contains("saaf karo") -> {
                 speak("Clearing the chat.")
                 clearChatHistory()
                 true
             }
 
-            normalizedCommand.contains("export chat") || normalizedCommand.contains("save chat") || normalizedCommand.contains("download chat") -> {
+            normalizedCommand.contains("export") || normalizedCommand.contains("save") || normalizedCommand.contains("download") -> {
                 speak("Exporting this conversation to PDF.")
                 exportChatToPdf()
                 true
             }
 
-            normalizedCommand.contains("status") || normalizedCommand.contains("attachment status") -> {
+            normalizedCommand.contains("status") || normalizedCommand.contains("kya hai") -> {
                 val attachmentName = currentFileUri?.lastPathSegment ?: "No file attached"
                 speak("This chat has ${messageList.size} messages. Current attachment: $attachmentName.")
                 true
             }
 
-            normalizedCommand.contains("send") || normalizedCommand.contains("run ai") || normalizedCommand.contains("analyze attachment") -> {
+            normalizedCommand.contains("send") || normalizedCommand.contains("run") || normalizedCommand.contains("analyze") || normalizedCommand.contains("bhejo") -> {
                 sendCurrentMessage(readReply = true)
                 true
             }
@@ -157,6 +157,7 @@ class AiChatActivity : VoiceEnabledActivity() {
             else -> false
         }
     }
+
 
     override fun onUnknownVoiceCommand(rawCommand: String, normalizedCommand: String) {
         if (binding.progressBar.visibility == View.VISIBLE) {
@@ -340,7 +341,7 @@ class AiChatActivity : VoiceEnabledActivity() {
                     messageList.clear()
                     messageList.addAll(history.map { ChatMessage(it.message, it.isUser) })
                     if (messageList.isEmpty()) {
-                        addMessage("Hi! I'm your ScanToPdf AI Assistant. I can summarize PDFs, extract text, and answer questions about your documents. How can I help?", false)
+                        addMessage("Hi! I'm your SmartScan AI Assistant. I can summarize PDFs, extract text, and answer questions about your documents. How can I help?", false)
                     } else {
                         adapter.notifyDataSetChanged()
                         binding.rvChatMessages.scrollToPosition(messageList.size - 1)

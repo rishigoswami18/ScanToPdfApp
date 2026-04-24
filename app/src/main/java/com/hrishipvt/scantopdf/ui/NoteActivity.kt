@@ -64,14 +64,14 @@ class NoteActivity : VoiceEnabledActivity(), SensorEventListener {
     }
 
     override fun handleScreenVoiceCommand(rawCommand: String, normalizedCommand: String): Boolean {
-        val titleText = textAfterCommand(rawCommand, "title ", "set title ")
-        val bodyText = textAfterCommand(rawCommand, "write ", "dictate ", "append ")
-        val replaceText = textAfterCommand(rawCommand, "replace note with ", "replace content with ")
+        val titleText = textAfterCommand(rawCommand, "title ", "set title ", "give title ", "change title to ", "set title to ")
+        val bodyText = textAfterCommand(rawCommand, "write ", "dictate ", "append ", "add to note ", "add ", "note ", "text ")
+        val replaceText = textAfterCommand(rawCommand, "replace note with ", "replace content with ", "set content to ")
 
         return when {
             titleText.isNotEmpty() -> {
                 binding.etNoteTitle.setText(titleText)
-                speak("Updated note title.")
+                speak("Updated note title to $titleText")
                 true
             }
 
@@ -83,24 +83,24 @@ class NoteActivity : VoiceEnabledActivity(), SensorEventListener {
 
             bodyText.isNotEmpty() -> {
                 appendToNote(bodyText)
-                speak("Added the text to your note.")
+                speak("Added $bodyText to your note.")
                 true
             }
 
-            normalizedCommand.contains("save") || normalizedCommand.contains("done") -> {
+            normalizedCommand.contains("save") || normalizedCommand.contains("done") || normalizedCommand.contains("save this note") || normalizedCommand.contains("save note") -> {
                 speak("Saving note.")
                 saveNote()
                 true
             }
 
-            normalizedCommand.contains("share") || normalizedCommand.contains("send") -> {
+            normalizedCommand.contains("share") || normalizedCommand.contains("send") || normalizedCommand.contains("share this note") || normalizedCommand.contains("share note") -> {
                 speak("Opening share options.")
                 shareNote()
                 true
             }
 
-            normalizedCommand.contains("pdf") || normalizedCommand.contains("convert") -> {
-                speak("Converting note to PDF.")
+            normalizedCommand.contains("pdf") || normalizedCommand.contains("convert") || normalizedCommand.contains("export") -> {
+                speak("Converting note to PDF and saving.")
                 convertToPdf()
                 true
             }
@@ -151,20 +151,41 @@ class NoteActivity : VoiceEnabledActivity(), SensorEventListener {
     }
 
     override fun onUnknownVoiceCommand(rawCommand: String, normalizedCommand: String) {
-        speak("Writing that for you.")
+        if (rawCommand.length > 10 && !rawCommand.contains(" ")) {
+            // Likely a single long word or gibberish, skip
+            return
+        }
+
+        // Fallback: If it's a reasonably long sentence, just append it directly.
+        // This makes dictation feel much more responsive.
+        if (rawCommand.split(" ").size >= 3) {
+            appendToNote(rawCommand)
+            speak("Added to note.")
+            return
+        }
+
+        speak("Processing your request.")
         binding.aiProgressBar.visibility = android.view.View.VISIBLE
 
         GeminiApi.processAiTask(
-            prompt = "You are an AI writing assistant inside a note taking app. The user commanded: '$rawCommand'. Provide only the requested note content so it can be pasted directly into the document.",
-            content = "",
+            prompt = "The user is in a note-taking app and said: '$rawCommand'. If this is a request to write something, provide that content. If it's a question, answer it briefly. Return ONLY the text to be added to the note.",
+            content = binding.etNoteContent.text.toString(),
             onSuccess = { answer ->
                 binding.aiProgressBar.visibility = android.view.View.GONE
-                appendToNote(answer.trim())
-                speak("I added that content to your note.")
+                if (answer.isNotBlank() && !answer.contains("could not generate", ignoreCase = true)) {
+                    appendToNote(answer.trim())
+                    speak("Added.")
+                } else {
+                    // Final fallback: just add the raw command if AI is being difficult
+                    appendToNote(rawCommand)
+                    speak("Added exactly what you said.")
+                }
             },
             onError = {
                 binding.aiProgressBar.visibility = android.view.View.GONE
-                speak("I could not generate that content.")
+                // If AI fails (e.g. safety filter), just act as a simple dictation tool
+                appendToNote(rawCommand)
+                speak("Added to note.")
             }
         )
     }
@@ -463,11 +484,14 @@ class NoteActivity : VoiceEnabledActivity(), SensorEventListener {
             return
         }
 
+        val userId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: "local"
+
         val note = Note(
             id = if (noteId == -1) 0 else noteId,
             title = if (title.isEmpty()) "Untitled" else title,
             content = content,
-            time = System.currentTimeMillis()
+            time = System.currentTimeMillis(),
+            userId = userId
         )
 
         viewModel.saveNote(note)
